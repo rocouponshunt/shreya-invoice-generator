@@ -276,6 +276,7 @@ table.items tbody tr:nth-child(even){background:#fafbfc}
   <div class="spacer"></div>
   <select id="hotelPicker" class="hsel" style="display:none" onchange="onPickHotel()"></select>
   <span class="who" id="who" style="display:none"></span>
+  <a class="themebtn" id="adminLink" href="https://vanta-invoice-pro.lovable.app/admin" target="_blank" rel="noopener" style="display:none;text-decoration:none" title="Open Admin Portal">⚙ Admin</a>
   <button class="themebtn" id="themeBtn" onclick="toggleTheme()" title="Toggle light / dark">🌙</button>
   <button class="themebtn" id="logoutBtn" style="display:none" onclick="logout()" title="Log out">⎋</button>
   <span class="pill" id="connPill">…</span>
@@ -290,10 +291,10 @@ table.items tbody tr:nth-child(even){background:#fafbfc}
       <h3>Invoice</h3>
       <div class="grid">
         <div class="field">
-          <label>Invoice No. <span class="hint">(auto · sequential)</span></label>
+          <label>Invoice No.</label>
           <input id="invNo" readonly>
         </div>
-        <div class="field"><label>Invoice Date <span class="hint">(today — tap to change)</span></label><input type="date" id="invDate"></div>
+        <div class="field"><label>Invoice Date</label><input type="date" id="invDate"></div>
       </div>
     </div>
 
@@ -328,15 +329,15 @@ table.items tbody tr:nth-child(even){background:#fafbfc}
         <div class="field full" style="margin-top:2px">
           <label class="switch"><input type="checkbox" id="mealOpt"><span class="track"></span><span>Meal Plan included</span></label>
         </div>
-        <div class="field"><label>Meal Plan</label>
-          <select id="mealType" disabled>
+        <div class="field" id="mealTypeWrap" style="display:none"><label>Meal Plan</label>
+          <select id="mealType">
             <option value="EP">EP — Room only</option>
             <option value="CP">CP — Breakfast</option>
             <option value="MAP">MAP — Breakfast + 1 meal</option>
             <option value="AP">AP — All meals</option>
           </select>
         </div>
-        <div class="field"><label>Meal Charge (flat)</label><input type="number" id="mealCharge" min="0" value="0" disabled></div>
+        <div class="field" id="mealChargeWrap" style="display:none"><label>Meal Charge (flat)</label><input type="number" id="mealCharge" min="0" value="0"></div>
         <div class="field"><label>Extra Persons</label><input type="number" id="exPersons" min="0" value="0"></div>
         <div class="field"><label>Extra Person Rate / night</label><input type="number" id="exRate" min="0" value="0"></div>
         <div class="field"><label>Discount</label><input type="number" id="discVal" min="0" value="0"></div>
@@ -362,6 +363,9 @@ table.items tbody tr:nth-child(even){background:#fafbfc}
       </div>
     </div>
 
+    <button class="btn gold" id="saveBtn" onclick="saveInvoice()" style="width:100%;justify-content:center;padding:14px;font-size:15px">💾 Save Invoice</button>
+    <div class="hint" id="saveHint" style="text-align:center;margin-top:8px">Save to lock this number, then print / download / WhatsApp become available.</div>
+
   </div>
 
   <!-- ====================== PREVIEW ====================== -->
@@ -369,11 +373,10 @@ table.items tbody tr:nth-child(even){background:#fafbfc}
     <div class="toolbar">
       <button class="btn ghost" onclick="loadPastInvoices()">📁 Past Invoices</button>
       <button class="btn ghost" onclick="resetForm()">＋ New</button>
-      <button class="btn gold" onclick="saveInvoice()">💾 Save Invoice</button>
-      <button class="btn" onclick="chooseSize(doPrint)">🖨 Print</button>
-      <button class="btn" onclick="chooseSize(doPDF)">⬇ PDF</button>
-      <button class="btn" onclick="doJPG()">⬇ JPG (A5)</button>
-      <button class="btn wa" onclick="sendWhatsApp()">WhatsApp</button>
+      <button class="btn act" onclick="chooseSize(doPrint)">🖨 Print</button>
+      <button class="btn act" onclick="chooseSize(doPDF)">⬇ PDF</button>
+      <button class="btn act" onclick="doJPG()">⬇ JPG (A5)</button>
+      <button class="btn wa act" onclick="sendWhatsApp()">WhatsApp</button>
     </div>
 
     <div id="invoice">
@@ -438,8 +441,8 @@ table.items tbody tr:nth-child(even){background:#fafbfc}
 
         <div class="words"><span class="lbl">Amount in words</span><span id="ivWords">—</span></div>
 
-        <div class="pay-row">
-          <div class="bankbox">
+        <div class="pay-row" id="ivPayRow">
+          <div class="bankbox" id="ivBankBox">
             <div class="h">Payment Details</div>
             <div class="v" id="ivBank">—</div>
           </div>
@@ -526,6 +529,7 @@ table.items tbody tr:nth-child(even){background:#fafbfc}
       <div class="fld"><label>Password</label><input id="liPass" type="password" autocomplete="current-password" placeholder="••••••••"></div>
       <button class="authbtn" id="liBtn" onclick="doLogin()">Log in</button>
       <div class="authswitch">New hotel? <a onclick="showAuth('signup')">Create an account</a></div>
+      <div class="authswitch" style="margin-top:6px">Manage your hotel settings in the <a href="https://vanta-invoice-pro.lovable.app/admin" target="_blank" rel="noopener">Admin Portal</a>.</div>
     </div>
 
     <!-- SIGNUP -->
@@ -581,6 +585,8 @@ const $ = id => document.getElementById(id);
 const fmt = n => Number(n||0).toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2});
 const rupee = n => "₹"+fmt(n);
 const round2 = n => Math.round((Number(n)||0)*100)/100;
+const todayIST = () => new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Kolkata',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
+let invoiceSaved = false;   // outputs (print/pdf/jpg/whatsapp) stay locked until the invoice is saved
 
 /* ---------- GST (5%) ----------
    ticked  = exclusive: total is the base, 5% added on top
@@ -704,6 +710,7 @@ function logout(silent,reason){
   SESSION={token:null,refresh:null,role:null,hotel:null}; activeHotelId=null;
   lsDel('vp_token'); lsDel('vp_refresh');
   $('logoutBtn').style.display='none'; $('who').style.display='none'; $('hotelPicker').style.display='none';
+  const al=$('adminLink'); if(al) al.style.display='none';
   $('banner').style.display='none';
   showAuth('login');
   if(reason) authErr(reason);
@@ -724,7 +731,7 @@ async function restoreSession(){
 /* ---------- after successful login ---------- */
 async function postLogin(){
   $('connPill').textContent="● Connected"; $('connPill').className="pill";
-  $('logoutBtn').style.display=''; 
+  $('logoutBtn').style.display=''; $('adminLink').style.display=''; 
   const who=$('who'); who.style.display='';
   if(SESSION.role==='super_admin'){
     who.innerHTML='<b>Super Admin</b>';
@@ -798,11 +805,17 @@ function applyGate(){
   else if(HOTEL_STATUS.enabled===false){ msg='⛔ Access for this hotel is currently turned off by the administrator.'; cls='bad'; }
   if(msg){ b.textContent=msg; b.className='banner '+cls; b.style.display=''; }
   else b.style.display='none';
-  // lock the save button when generation isn't allowed
+  // lock the Save button when generation isn't allowed
   const ok=canGenerate();
-  document.querySelectorAll('.toolbar .btn').forEach(btn=>{
-    if(/Save Invoice/.test(btn.textContent)){ btn.disabled=!ok; btn.style.opacity=ok?'':'.5'; btn.style.pointerEvents=ok?'':'none'; }
-  });
+  const sb=$('saveBtn'); if(sb){ sb.disabled=!ok; sb.style.opacity=ok?'':'.5'; sb.style.pointerEvents=ok?'':'none'; }
+  updateActionButtons();
+}
+/* outputs unlock only after a successful save (and only while billing is allowed) */
+function setSaved(v){ invoiceSaved=v; updateActionButtons(); }
+function updateActionButtons(){
+  const ok = invoiceSaved && canGenerate();
+  document.querySelectorAll('.toolbar .act').forEach(btn=>{ btn.disabled=!ok; btn.style.opacity=ok?'':'.45'; btn.style.pointerEvents=ok?'':'none'; });
+  const hint=$('saveHint'); if(hint) hint.style.display=invoiceSaved?'none':'';
 }
 
 /* ---------- amount in words (Indian system) ---------- */
@@ -916,8 +929,9 @@ function render(){
     if(CONFIG.bank_account_no)bank+='<span class="lbl">A/C No:</span> '+CONFIG.bank_account_no+'<br>';
     if(CONFIG.bank_ifsc)bank+='<span class="lbl">IFSC:</span> '+CONFIG.bank_ifsc+'<br>';
     if(CONFIG.upi_id)bank+='<span class="lbl">UPI:</span> '+CONFIG.upi_id;
-  } else bank="—";
-  $('ivBank').innerHTML=bank;
+  }
+  if(bank){ $('ivBank').innerHTML=bank; $('ivBankBox').style.display=''; $('ivPayRow').style.gridTemplateColumns=''; }
+  else { $('ivBankBox').style.display='none'; $('ivPayRow').style.gridTemplateColumns='1fr'; }
 
   // signature
   const sg=$('ivSign');
@@ -949,6 +963,7 @@ function applyLogo(){
 
 /* ---------- invoice number (server, scoped to active hotel) ---------- */
 async function refreshInvoiceNumber(){
+  setSaved(false);
   if(!canGenerate()){ $('invNo').value='—'; render(); return; }
   try{
     const d=await api('getNextInvoiceNumber', hotelParam());
@@ -963,11 +978,11 @@ $('gName').addEventListener('input',e=>{
   const el=e.target, pos=el.selectionStart;
   el.value=el.value.replace(/(^|\s)([a-z])/g,(m,p,c)=>p+c.toUpperCase()); // capitalise each word
   try{el.setSelectionRange(pos,pos)}catch(_){}
-  render();debouncedSearch(el.value);
+  setSaved(false);render();debouncedSearch(el.value);
 });
 $('gPhone').addEventListener('input',e=>{
   e.target.value=e.target.value.replace(/\D/g,'').slice(0,10); // digits only, max 10
-  render();debouncedSearch(e.target.value);
+  setSaved(false);render();debouncedSearch(e.target.value);
 });
 function debouncedSearch(q){
   clearTimeout(gtimer);
@@ -988,7 +1003,11 @@ document.addEventListener('click',e=>{if(!e.target.closest('#gName')&&!e.target.
 
 /* ---------- meal toggle ---------- */
 $('mealOpt').addEventListener('change',()=>{
-  const on=$('mealOpt').checked;$('mealType').disabled=!on;$('mealCharge').disabled=!on;render();
+  const on=$('mealOpt').checked;
+  $('mealTypeWrap').style.display=on?'':'none';
+  $('mealChargeWrap').style.display=on?'':'none';
+  if(!on)$('mealCharge').value=0;
+  render();
 });
 
 /* ---------- collect invoice object ---------- */
@@ -1021,6 +1040,7 @@ async function saveInvoice(){
   try{
     const d=await api('saveInvoice',{invoice:inv, ...hotelParam()});
     if(d&&d.invoice&&d.invoice.invoice_number){$('invNo').value=d.invoice.invoice_number;render();}
+    setSaved(true);
     showSaved();
   }catch(e){
     toast("Save failed: "+niceErr(e.message),true);
@@ -1055,14 +1075,16 @@ async function reloadInvoice(id){
     $('cin').value=i.checkin_date;$('cout').value=i.checkout_date;
     $('rooms').value=i.num_rooms;$('people').value=i.num_people;
     $('roomCat').value=i.room_category;$('roomRate').value=i.room_rate;
-    $('mealOpt').checked=!!i.meal_plan_opted;$('mealType').disabled=!i.meal_plan_opted;$('mealCharge').disabled=!i.meal_plan_opted;
+    $('mealOpt').checked=!!i.meal_plan_opted;
+    $('mealTypeWrap').style.display=i.meal_plan_opted?'':'none';
+    $('mealChargeWrap').style.display=i.meal_plan_opted?'':'none';
     if(i.meal_plan_type)$('mealType').value=i.meal_plan_type;$('mealCharge').value=i.meal_charge;
     $('exPersons').value=i.extra_persons;$('exRate').value=i.extra_person_rate;
     $('discType').value=i.discount_type;$('discVal').value=i.discount_value;
     $('gstAdd').checked=!!i.gst_exclusive;
     lastComputedTotal=-1;$('grandTotal').value=(i.net_amount!=null?i.net_amount:i.total_amount);
     $('advance').value=i.advance_amount;$('payMode').value=i.payment_mode||'Cash';
-    hide('pastOverlay');render();toast("Loaded "+i.invoice_number);
+    hide('pastOverlay');render();setSaved(true);toast("Loaded "+i.invoice_number);
   }catch(e){toast("Could not load: "+niceErr(e.message),true)}
 }
 
@@ -1070,11 +1092,12 @@ async function reloadInvoice(id){
 function resetForm(){
   ['gName','gPhone','cin','cout'].forEach(id=>$(id).value='');
   $('rooms').value=1;$('people').value=2;$('roomRate').value=0;
-  $('mealOpt').checked=false;$('mealType').disabled=true;$('mealCharge').disabled=true;$('mealCharge').value=0;
+  $('mealOpt').checked=false;$('mealTypeWrap').style.display='none';$('mealChargeWrap').style.display='none';$('mealCharge').value=0;
   $('exPersons').value=0;$('exRate').value=0;$('discVal').value=0;$('advance').value=0;
   lastComputedTotal=0;$('grandTotal').value=0;
   $('gstAdd').checked=false;
-  $('invDate').value=new Date().toISOString().slice(0,10);
+  $('invDate').value=todayIST();
+  setSaved(false);
   refreshInvoiceNumber();
   toast("New invoice");
 }
@@ -1169,14 +1192,15 @@ Thank you for choosing us! 🙏`;
 }
 
 /* ---------- live updates on every input ---------- */
+function onFieldEdit(){ setSaved(false); render(); }
 document.querySelectorAll('input,select').forEach(el=>{
   if(['gName','gPhone'].includes(el.id))return; // handled separately
-  el.addEventListener('input',render);el.addEventListener('change',render);
+  el.addEventListener('input',onFieldEdit);el.addEventListener('change',onFieldEdit);
 });
 
 /* ---------- init ---------- */
 applyTheme((function(){try{return localStorage.getItem('vp_theme')||'light'}catch(e){return 'light'}})());
-$('invDate').value=new Date().toISOString().slice(0,10);
+$('invDate').value=todayIST();
 $('connPill').textContent="…";
 restoreSession();
 // allow Enter key to submit the visible auth form
