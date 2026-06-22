@@ -617,10 +617,10 @@ async function api(action, params={}){
   let j=await rawApi(action,params);
   if(!j.ok && j.error==="invalid_token" && SESSION.refresh){
     const r=await rawApi("refresh",{refresh_token:SESSION.refresh});
-    if(r.ok){ setTokens(r.data.token, r.data.refresh_token); j=await rawApi(action,params); }
+    if(r.ok){ const t=pickToken(r.data), rt=pickRefresh(r.data)||SESSION.refresh; if(t){ setTokens(t,rt); j=await rawApi(action,params); } }
   }
   if(!j.ok){
-    if(j.error==="invalid_token") logout(true);
+    if(j.error==="invalid_token") logout(true,"Signed out: the server rejected your session token. This is a backend auth-validation setting — see the fix prompt.");
     throw new Error(j.error||"Request failed");
   }
   return j.data;
@@ -637,6 +637,11 @@ function lsGet(k,def){try{const v=localStorage.getItem(k);return v===null?def:v}
 function lsSet(k,v){try{localStorage.setItem(k,v)}catch(e){}}
 function lsDel(k){try{localStorage.removeItem(k)}catch(e){}}
 function setTokens(t,r){ SESSION.token=t; SESSION.refresh=r; lsSet('vp_token',t||''); lsSet('vp_refresh',r||''); }
+/* tolerate different response shapes from the backend */
+function pickToken(d){ return (d&&(d.token||d.access_token||(d.session&&d.session.access_token)))||null; }
+function pickRefresh(d){ return (d&&(d.refresh_token||d.refresh||(d.session&&d.session.refresh_token)))||null; }
+function pickRole(d){ return (d&&(d.role||(d.profile&&d.profile.role)))||null; }
+function pickHotel(d){ return (d&&(d.hotel||d.hotel_data||null))||null; }
 
 /* ---------- auth screen helpers ---------- */
 function showAuth(mode){
@@ -660,8 +665,10 @@ async function doLogin(){
   const btn=$('liBtn'); btn.disabled=true; btn.textContent="Logging in…";
   try{
     const d=await api('login',{email,password:pass});
-    setTokens(d.token, d.refresh_token);
-    SESSION.role=d.role; SESSION.hotel=d.hotel||null;
+    const tok=pickToken(d), rtok=pickRefresh(d);
+    if(!tok){ authErr("Logged in, but the server returned no session token (backend response shape). Tell the developer: login must return data.token."); btn.disabled=false; btn.textContent="Log in"; return; }
+    setTokens(tok, rtok);
+    SESSION.role=pickRole(d); SESSION.hotel=pickHotel(d);
     hideAuth(); postLogin();
   }catch(e){ authErr(niceErr(e.message)); }
   btn.disabled=false; btn.textContent="Log in";
@@ -693,13 +700,14 @@ async function doSignup(){
 }
 
 /* ---------- logout ---------- */
-function logout(silent){
+function logout(silent,reason){
   SESSION={token:null,refresh:null,role:null,hotel:null}; activeHotelId=null;
   lsDel('vp_token'); lsDel('vp_refresh');
   $('logoutBtn').style.display='none'; $('who').style.display='none'; $('hotelPicker').style.display='none';
   $('banner').style.display='none';
   showAuth('login');
-  if(!silent) toast("Logged out");
+  if(reason) authErr(reason);
+  else if(!silent) toast("Logged out");
 }
 
 /* ---------- restore session on load ---------- */
@@ -708,7 +716,7 @@ async function restoreSession(){
   if(!SESSION.token){ showAuth('login'); return; }
   try{
     const d=await api('me');
-    SESSION.role=d.role; SESSION.hotel=d.hotel||null;
+    SESSION.role=pickRole(d); SESSION.hotel=pickHotel(d);
     hideAuth(); postLogin();
   }catch(e){ logout(true); }
 }
