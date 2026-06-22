@@ -476,8 +476,8 @@ table.items tbody tr:nth-child(even){background:#fafbfc}
 /* ============================================================
    CONFIG — paste your Supabase Edge Function URL + passcode
    ============================================================ */
-const API_URL = "PASTE_YOUR_EDGE_FUNCTION_URL_HERE";   // e.g. https://xxxx.supabase.co/functions/v1/invoice-api
-const APP_KEY = "PASTE_YOUR_PASSCODE_HERE";             // must match the passcode set in the Lovable admin
+const API_URL = "https://qdatgjjqmxsdibtaajxc.supabase.co/functions/v1/invoice-api";
+const APP_KEY = "VANTARA2026";             // must match app_passcode in the admin
 
 /* ---- fallback business config (used if API is not reachable) ---- */
 let CONFIG = {
@@ -707,10 +707,15 @@ function applyLogo(){
 /* ---------- load config from edge function ---------- */
 async function loadConfig(){
   const pill=$('connPill');
+  const fbLogo=CONFIG.logo, fbSig=CONFIG.signature, fbTerms=CONFIG.terms;
   try{
     const d=await api('getConfig');
     if(d.config) CONFIG=Object.assign(CONFIG,d.config);
     if(d.roomCategories&&d.roomCategories.length) ROOM_CATEGORIES=d.roomCategories;
+    // keep built-in fallbacks if the admin hasn't filled these yet
+    if(!CONFIG.logo) CONFIG.logo=fbLogo;
+    if(!CONFIG.signature) CONFIG.signature=fbSig;
+    if(!CONFIG.terms || !CONFIG.terms.length) CONFIG.terms=fbTerms;
     API_OK=true;
     pill.textContent="● Connected to admin";pill.className="pill";
   }catch(e){
@@ -720,6 +725,16 @@ async function loadConfig(){
   $('roomCat').innerHTML=ROOM_CATEGORIES.map(r=>`<option>${r}</option>`).join("");
   applyLogo();
   render();
+  refreshInvoiceNumber();   // server-assigned next number when connected
+}
+
+/* ---------- invoice number: server when online, local counter when offline ---------- */
+async function refreshInvoiceNumber(){
+  let num=currentInvoiceNumber();
+  if(API_OK){
+    try{const d=await api('getNextInvoiceNumber');if(d&&d.invoice_number)num=d.invoice_number;}catch(e){}
+  }
+  $('invNo').value=num; render();
 }
 
 /* ---------- guest autofill ---------- */
@@ -782,9 +797,13 @@ async function saveInvoice(){
   if(!$('gName').value){toast("Enter guest name first",true);return}
   const inv=collectInvoice();
   try{
-    if(API_OK){toast("Saving…");await api('saveInvoice',{invoice:inv});}
-    else{localSaveInvoice(inv);}
-    commitNumber();
+    if(API_OK){
+      toast("Saving…");
+      const d=await api('saveInvoice',{invoice:inv});
+      if(d&&d.invoice&&d.invoice.invoice_number){$('invNo').value=d.invoice.invoice_number;render();}
+    }else{
+      localSaveInvoice(inv);commitNumber();
+    }
     showSaved();
   }catch(e){
     localSaveInvoice(inv);commitNumber();showSaved();   // never lose the invoice
@@ -846,8 +865,8 @@ function resetForm(){
   $('exPersons').value=0;$('exRate').value=0;$('discVal').value=0;$('advance').value=0;
   lastComputedTotal=0;$('grandTotal').value=0;
   $('invDate').value=new Date().toISOString().slice(0,10);
-  $('invNo').value=currentInvoiceNumber();
-  render();toast("New invoice "+$('invNo').value);
+  refreshInvoiceNumber();   // server next number when online, local counter when offline
+  toast("New invoice");
 }
 
 /* ---------- size chooser ---------- */
