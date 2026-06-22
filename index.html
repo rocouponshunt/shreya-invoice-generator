@@ -785,6 +785,7 @@ function canGenerate(){
 function applyGate(){
   const b=$('banner'); let msg='', cls='';
   if(SESSION.role==='super_admin' && !activeHotelId){ msg='Select a hotel above to start billing.'; cls='info'; }
+  else if(SESSION.role==='hotel_admin' && !SESSION.hotel){ msg='Your account isn\u2019t linked to a hotel yet — please contact the administrator.'; cls='warn'; }
   else if(HOTEL_STATUS.status && HOTEL_STATUS.status!=='approved'){ msg='⏳ This hotel is awaiting super-admin approval. Invoices are locked until approved.'; cls='warn'; }
   else if(HOTEL_STATUS.enabled===false){ msg='⛔ Access for this hotel is currently turned off by the administrator.'; cls='bad'; }
   if(msg){ b.textContent=msg; b.className='banner '+cls; b.style.display=''; }
