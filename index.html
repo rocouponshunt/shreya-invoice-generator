@@ -11,26 +11,38 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <style>
 :root{
-  --navy:#0A2540;        /* deep royal blue */
-  --navy-2:#102A43;
-  --gold:#C9A24B;        /* premium gold */
-  --gold-2:#E7C97A;
-  --ink:#1c2733;
-  --muted:#6b7a8d;
-  --line:#e6e9ee;
-  --bg:#0c1826;
-  --paper:#ffffff;
-  --soft:#f4f6f9;
+  --navy:#0A2540; --navy-2:#102A43;
+  --gold:#C9A24B; --gold-2:#E7C97A;
+  --ink:#1c2733; --muted:#6b7a8d; --line:#e6e9ee;
+  --paper:#ffffff; --soft:#f4f6f9;
+  /* ---------- app chrome: LIGHT (default) ---------- */
+  --app-bg: radial-gradient(1000px 520px at 85% -10%, rgba(201,162,75,.16), transparent 60%),
+            radial-gradient(820px 460px at -10% 110%, rgba(10,37,64,.08), transparent 60%),
+            linear-gradient(180deg,#f3f5f9,#e8ecf2);
+  --app-surface:#ffffff; --app-surface-2:#f4f6f9; --app-border:#e3e7ee;
+  --app-text:#1c2733; --app-muted:#6b7a8d;
+  --in-bg:#ffffff; --in-border:#d6dce6; --in-text:#1c2733; --in-ph:#9aa7b6;
+  --ov-bg:rgba(22,32,46,.42); --modal-bg:#ffffff; --modal-text:#1c2733; --modal-sub:#6b7a8d;
+  --scroll:rgba(201,162,75,.55);
+  --btn-bg:#ffffff; --btn-border:#dfe4ec; --btn-text:#23303f; --btn-hover:#eef1f6;
+}
+body.dark{
+  --app-bg: radial-gradient(1200px 600px at 80% -10%, rgba(201,162,75,.18), transparent 60%),
+            radial-gradient(900px 500px at -10% 110%, rgba(16,42,67,.55), transparent 60%),
+            linear-gradient(180deg,#0a1622,#0c1826);
+  --app-surface:rgba(255,255,255,.04); --app-surface-2:rgba(255,255,255,.08); --app-border:rgba(255,255,255,.08);
+  --app-text:#ffffff; --app-muted:#9fb2c7;
+  --in-bg:rgba(8,18,30,.6); --in-border:rgba(201,162,75,.22); --in-text:#ffffff; --in-ph:#5b6f84;
+  --ov-bg:rgba(6,12,20,.7); --modal-bg:#0e1f31; --modal-text:#ffffff; --modal-sub:#9fb2c7;
+  --scroll:rgba(201,162,75,.35);
+  --btn-bg:rgba(255,255,255,.08); --btn-border:rgba(255,255,255,.12); --btn-text:#ffffff; --btn-hover:rgba(255,255,255,.14);
 }
 *{box-sizing:border-box}
 html,body{margin:0;padding:0}
 body{
-  font-family:'Jost',sans-serif;color:var(--ink);
-  background:
-    radial-gradient(1200px 600px at 80% -10%, rgba(201,162,75,.18), transparent 60%),
-    radial-gradient(900px 500px at -10% 110%, rgba(16,42,67,.55), transparent 60%),
-    linear-gradient(180deg,#0a1622,#0c1826);
-  min-height:100vh;
+  font-family:'Jost',sans-serif;color:var(--app-text);
+  background:var(--app-bg);background-attachment:fixed;
+  min-height:100vh;transition:background .3s,color .3s;
 }
 
 /* ---------- App chrome ---------- */
@@ -52,6 +64,8 @@ body{
 .appbar .spacer{flex:1}
 .pill{font-size:11px;color:#cfe;border:1px solid rgba(201,162,75,.4);color:var(--gold-2);padding:5px 11px;border-radius:999px}
 .pill.warn{color:#ffd2a8;border-color:rgba(255,170,90,.4)}
+.themebtn{background:rgba(255,255,255,.12);border:1px solid rgba(201,162,75,.4);color:#fff;border-radius:9px;padding:7px 11px;cursor:pointer;font-size:15px;line-height:1;transition:.15s}
+.themebtn:hover{background:rgba(255,255,255,.22)}
 
 .layout{display:grid;grid-template-columns:minmax(360px,440px) 1fr;gap:0;align-items:start}
 @media(max-width:980px){.layout{grid-template-columns:1fr}}
@@ -59,52 +73,52 @@ body{
 /* ---------- Form panel ---------- */
 .form-panel{
   padding:22px 22px 120px;max-height:calc(100vh - 73px);overflow:auto;
-  border-right:1px solid rgba(201,162,75,.15);
+  border-right:1px solid var(--app-border);
 }
 .form-panel::-webkit-scrollbar{width:9px}
-.form-panel::-webkit-scrollbar-thumb{background:rgba(201,162,75,.35);border-radius:9px}
-.card{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.07);border-radius:14px;padding:16px;margin-bottom:14px}
-.card h3{margin:0 0 12px;color:var(--gold-2);font-family:'Cormorant Garamond',serif;font-size:18px;letter-spacing:.4px;font-weight:600;
+.form-panel::-webkit-scrollbar-thumb{background:var(--scroll);border-radius:9px}
+.card{background:var(--app-surface);border:1px solid var(--app-border);border-radius:14px;padding:16px;margin-bottom:14px;box-shadow:0 1px 2px rgba(20,30,45,.03)}
+.card h3{margin:0 0 12px;color:var(--gold);font-family:'Cormorant Garamond',serif;font-size:18px;letter-spacing:.4px;font-weight:600;
   display:flex;align-items:center;gap:8px}
 .card h3::before{content:"";width:18px;height:2px;background:linear-gradient(90deg,var(--gold),transparent);display:inline-block}
 .grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .grid.one{grid-template-columns:1fr}
 .field{display:flex;flex-direction:column;gap:5px;position:relative}
 .field.full{grid-column:1 / -1}
-label{font-size:11.5px;color:#9fb2c7;letter-spacing:.4px;text-transform:uppercase;font-weight:500}
+label{font-size:11.5px;color:var(--app-muted);letter-spacing:.4px;text-transform:uppercase;font-weight:500}
 input,select,textarea{
-  font-family:'Jost',sans-serif;font-size:14px;color:#fff;background:rgba(8,18,30,.6);
-  border:1px solid rgba(201,162,75,.22);border-radius:9px;padding:9px 11px;outline:none;transition:.15s;
+  font-family:'Jost',sans-serif;font-size:14px;color:var(--in-text);background:var(--in-bg);
+  border:1px solid var(--in-border);border-radius:9px;padding:9px 11px;outline:none;transition:.15s;
 }
 input:focus,select:focus,textarea:focus{border-color:var(--gold);box-shadow:0 0 0 3px rgba(201,162,75,.15)}
-input::placeholder{color:#5b6f84}
-/* visible calendar icon on dark date fields */
+input::placeholder{color:var(--in-ph)}
+/* visible calendar icon on date fields */
 input[type="date"]{position:relative;cursor:pointer}
 input[type="date"]::-webkit-calendar-picker-indicator{
-  filter:invert(78%) sepia(38%) saturate(560%) hue-rotate(2deg) brightness(92%);
+  filter:invert(58%) sepia(38%) saturate(560%) hue-rotate(2deg) brightness(92%);
   cursor:pointer;opacity:1;font-size:16px}
-input[type="date"]::-webkit-calendar-picker-indicator:hover{filter:invert(85%) sepia(60%) saturate(700%) hue-rotate(2deg)}
-select option{background:#0c1826}
+input[type="date"]::-webkit-calendar-picker-indicator:hover{filter:invert(70%) sepia(60%) saturate(700%) hue-rotate(2deg)}
+select option{background:var(--modal-bg);color:var(--modal-text)}
 .row-inline{display:flex;align-items:center;gap:8px}
 .switch{display:inline-flex;align-items:center;gap:9px;cursor:pointer;user-select:none}
 .switch input{display:none}
-.track{width:42px;height:24px;border-radius:999px;background:rgba(255,255,255,.12);position:relative;transition:.2s;border:1px solid rgba(201,162,75,.25)}
-.track::after{content:"";position:absolute;top:2px;left:2px;width:18px;height:18px;border-radius:50%;background:#cfd8e3;transition:.2s}
+.track{width:42px;height:24px;border-radius:999px;background:rgba(120,135,155,.3);position:relative;transition:.2s;border:1px solid rgba(201,162,75,.25)}
+.track::after{content:"";position:absolute;top:2px;left:2px;width:18px;height:18px;border-radius:50%;background:#fff;transition:.2s;box-shadow:0 1px 3px rgba(0,0,0,.25)}
 .switch input:checked + .track{background:linear-gradient(90deg,var(--gold),var(--gold-2))}
 .switch input:checked + .track::after{transform:translateX(18px);background:#fff}
-.switch span{color:#cfd8e3;font-size:13px}
-.hint{font-size:11px;color:#7e90a4}
-.suggest{position:absolute;top:62px;left:0;right:0;background:#0e1f31;border:1px solid rgba(201,162,75,.35);border-radius:10px;z-index:20;overflow:hidden;box-shadow:0 16px 40px rgba(0,0,0,.5)}
-.suggest div{padding:9px 12px;cursor:pointer;font-size:13px;color:#dfe7ef;border-bottom:1px solid rgba(255,255,255,.05)}
+.switch span{color:var(--app-text);font-size:13px;text-transform:none;letter-spacing:0}
+.hint{font-size:11px;color:var(--app-muted);text-transform:none;letter-spacing:0}
+.suggest{position:absolute;top:62px;left:0;right:0;background:var(--modal-bg);border:1px solid var(--in-border);border-radius:10px;z-index:20;overflow:hidden;box-shadow:0 16px 40px rgba(0,0,0,.25)}
+.suggest div{padding:9px 12px;cursor:pointer;font-size:13px;color:var(--modal-text);border-bottom:1px solid var(--app-border)}
 .suggest div:hover{background:rgba(201,162,75,.15)}
-.suggest small{color:#8aa0b6}
+.suggest small{color:var(--app-muted)}
 
 /* ---------- Preview panel ---------- */
 .preview-panel{padding:26px;display:flex;flex-direction:column;align-items:center;gap:18px}
 .toolbar{display:flex;flex-wrap:wrap;gap:10px;width:100%;max-width:720px;justify-content:center}
 .btn{font-family:'Jost',sans-serif;font-size:13.5px;font-weight:500;letter-spacing:.3px;border:none;border-radius:10px;padding:11px 16px;cursor:pointer;
-  display:inline-flex;align-items:center;gap:8px;transition:.15s;color:#fff;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12)}
-.btn:hover{transform:translateY(-1px);background:rgba(255,255,255,.14)}
+  display:inline-flex;align-items:center;gap:8px;transition:.15s;color:var(--btn-text);background:var(--btn-bg);border:1px solid var(--btn-border)}
+.btn:hover{transform:translateY(-1px);background:var(--btn-hover)}
 .btn.gold{background:linear-gradient(135deg,var(--gold),var(--gold-2));color:var(--navy);border:none;font-weight:600;box-shadow:0 8px 22px rgba(201,162,75,.35)}
 .btn.wa{background:linear-gradient(135deg,#1faf54,#25d366);color:#04210f;font-weight:600;border:none}
 .btn.ghost{background:transparent}
@@ -182,27 +196,27 @@ table.items tbody tr:nth-child(even){background:#fafbfc}
 .watermark span{font-family:'Playfair Display',serif;font-size:120px;color:var(--navy);transform:rotate(-18deg)}
 
 /* ---------- Modal / toast ---------- */
-.overlay{position:fixed;inset:0;background:rgba(6,12,20,.7);display:none;place-items:center;z-index:50;backdrop-filter:blur(3px)}
+.overlay{position:fixed;inset:0;background:var(--ov-bg);display:none;place-items:center;z-index:50;backdrop-filter:blur(3px)}
 .overlay.show{display:grid}
-.modal{background:#0e1f31;border:1px solid rgba(201,162,75,.3);border-radius:16px;padding:24px;width:min(520px,92vw);color:#fff;box-shadow:0 30px 80px rgba(0,0,0,.6)}
-.modal h2{margin:0 0 6px;font-family:'Playfair Display',serif;color:var(--gold-2);font-weight:600}
-.modal p{margin:0 0 16px;color:#9fb2c7;font-size:13px}
+.modal{background:var(--modal-bg);border:1px solid rgba(201,162,75,.3);border-radius:16px;padding:24px;width:min(520px,92vw);color:var(--modal-text);box-shadow:0 30px 80px rgba(0,0,0,.4)}
+.modal h2{margin:0 0 6px;font-family:'Playfair Display',serif;color:var(--gold);font-weight:600}
+.modal p{margin:0 0 16px;color:var(--modal-sub);font-size:13px}
 .size-opts{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-.size-opt{border:1px solid rgba(201,162,75,.3);border-radius:12px;padding:18px;text-align:center;cursor:pointer;transition:.15s;background:rgba(255,255,255,.03)}
+.size-opt{border:1px solid rgba(201,162,75,.3);border-radius:12px;padding:18px;text-align:center;cursor:pointer;transition:.15s;background:var(--app-surface-2);color:var(--modal-text)}
 .size-opt:hover{background:rgba(201,162,75,.15);transform:translateY(-2px)}
-.size-opt b{display:block;font-family:'Playfair Display',serif;font-size:22px;color:var(--gold-2)}
-.size-opt small{color:#9fb2c7}
+.size-opt b{display:block;font-family:'Playfair Display',serif;font-size:22px;color:var(--gold)}
+.size-opt small{color:var(--modal-sub)}
 .modal .close{margin-top:16px;text-align:center}
-.modal .x{background:transparent;border:1px solid rgba(255,255,255,.2);color:#cfd8e3;border-radius:8px;padding:8px 16px;cursor:pointer}
+.modal .x{background:transparent;border:1px solid var(--app-border);color:var(--modal-text);border-radius:8px;padding:8px 16px;cursor:pointer}
 .inv-list{max-height:50vh;overflow:auto;margin-top:6px}
-.inv-list .item{display:flex;justify-content:space-between;gap:10px;padding:11px 12px;border:1px solid rgba(255,255,255,.08);border-radius:9px;margin-bottom:8px;cursor:pointer}
+.inv-list .item{display:flex;justify-content:space-between;gap:10px;padding:11px 12px;border:1px solid var(--app-border);border-radius:9px;margin-bottom:8px;cursor:pointer}
 .inv-list .item:hover{border-color:var(--gold);background:rgba(201,162,75,.08)}
-.inv-list .item b{color:#fff}
-.inv-list .item small{color:#8aa0b6;display:block}
-.inv-list .item .amt{color:var(--gold-2);font-weight:600;white-space:nowrap}
-.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(20px);background:#0e1f31;border:1px solid rgba(201,162,75,.4);color:#fff;padding:12px 20px;border-radius:10px;opacity:0;transition:.25s;z-index:60;font-size:13.5px;box-shadow:0 16px 40px rgba(0,0,0,.5)}
+.inv-list .item b{color:var(--modal-text)}
+.inv-list .item small{color:var(--modal-sub);display:block}
+.inv-list .item .amt{color:var(--gold);font-weight:600;white-space:nowrap}
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--modal-bg);border:1px solid rgba(201,162,75,.4);color:var(--modal-text);padding:12px 20px;border-radius:10px;opacity:0;transition:.25s;z-index:60;font-size:13.5px;box-shadow:0 16px 40px rgba(0,0,0,.35)}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
-.toast.err{border-color:#ff8a8a;color:#ffd6d6}
+.toast.err{border-color:#e0594f;color:#c0392b}
 
 /* ---------- Print ---------- */
 @media print{
@@ -223,6 +237,7 @@ table.items tbody tr:nth-child(even){background:#fafbfc}
     <div class="sub">Hotel Shreya Galaxy — Haridwar</div>
   </div>
   <div class="spacer"></div>
+  <button class="themebtn" id="themeBtn" onclick="toggleTheme()" title="Toggle light / dark">🌙</button>
   <span class="pill" id="connPill">Connecting…</span>
 </div>
 
@@ -293,7 +308,11 @@ table.items tbody tr:nth-child(even){background:#fafbfc}
     <div class="card">
       <h3>Payment</h3>
       <div class="grid">
-        <div class="field full"><label>Grand Total <span class="hint">(auto — editable)</span></label><input type="number" id="grandTotal" min="0" value="0"></div>
+        <div class="field full"><label>Total Amount <span class="hint">(auto — editable)</span></label><input type="number" id="grandTotal" min="0" value="0"></div>
+        <div class="field full" style="margin-bottom:2px">
+          <label class="switch"><input type="checkbox" id="gstAdd"><span class="track"></span><span>Apply 5% GST on top of total</span></label>
+          <span class="hint">Ticked → 5% is added on top. Unticked → the total above is treated as GST-inclusive (base reduces automatically).</span>
+        </div>
         <div class="field"><label>Advance Received</label><input type="number" id="advance" min="0" value="0"></div>
         <div class="field"><label>Balance</label><input id="balance" readonly></div>
         <div class="field full"><label>Mode of Payment</label>
@@ -370,6 +389,8 @@ table.items tbody tr:nth-child(even){background:#fafbfc}
           <table>
             <tr><td class="lbl">Sub Total</td><td class="r" id="ivSub">0.00</td></tr>
             <tr id="ivDiscRow"><td class="lbl">Discount</td><td class="r" id="ivDisc">0.00</td></tr>
+            <tr><td class="lbl">Taxable Value</td><td class="r" id="ivTaxable">0.00</td></tr>
+            <tr><td class="lbl" id="ivGstLbl">GST @ 5%</td><td class="r" id="ivGst">0.00</td></tr>
             <tr class="grand"><td>Grand Total</td><td class="r gold-amt" id="ivGrand">₹0.00</td></tr>
           </table>
         </div>
@@ -474,6 +495,31 @@ let API_OK = false;
 const $ = id => document.getElementById(id);
 const fmt = n => Number(n||0).toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2});
 const rupee = n => "₹"+fmt(n);
+const round2 = n => Math.round((Number(n)||0)*100)/100;
+
+/* ---------- GST (5%) ----------
+   ticked  = exclusive: total is the base, 5% added on top
+   unticked = inclusive: total already includes 5%, base is back-calculated */
+const GST_RATE = 5;
+function gstCalc(){
+  const exclusive = $('gstAdd').checked;
+  const net = +$('grandTotal').value || 0;   // the "Total Amount" the user works with
+  let taxable, gst, final;
+  if(exclusive){ taxable=net; gst=net*GST_RATE/100; final=net+gst; }
+  else { final=net; taxable=net/(1+GST_RATE/100); gst=final-taxable; }
+  return {exclusive, net, rate:GST_RATE, taxable:round2(taxable), gst:round2(gst), final:round2(final)};
+}
+
+/* ---------- theme (default = light) ---------- */
+function applyTheme(t){
+  document.body.classList.toggle('dark', t==='dark');
+  const b=$('themeBtn'); if(b) b.textContent = (t==='dark') ? '☀️' : '🌙';
+}
+function toggleTheme(){
+  const dark = document.body.classList.contains('dark');
+  const t = dark ? 'light' : 'dark';
+  applyTheme(t); try{localStorage.setItem('vp_theme',t)}catch(e){}
+}
 
 /* ---------- API helper (everything goes through the edge function) ---------- */
 async function api(action, params={}){
@@ -574,9 +620,9 @@ function compute(){
 
 function render(){
   const c=compute();
-  const grand=+$('grandTotal').value||0;
+  const g=gstCalc();
   const adv=+$('advance').value||0;
-  const bal=grand-adv;$('balance').value=Math.round(bal);
+  const bal=g.final-adv;$('balance').value=Math.round(bal);
 
   // header / business
   $('ivName').innerHTML = (CONFIG.business_name||"").replace(/Premium/i,'<span class="em">Premium</span>') || "—";
@@ -615,11 +661,14 @@ function render(){
   const discRow=$('ivDiscRow');
   if(c.disc>0){discRow.style.display='';$('ivDisc').textContent="− "+fmt(c.disc)+(c.discType==='percent'?"  ("+c.discVal+"%)":"");}
   else discRow.style.display='none';
-  $('ivGrand').textContent=rupee(grand);
-  $('ivWords').textContent=inWords(grand);
+  $('ivTaxable').textContent=fmt(g.taxable);
+  $('ivGstLbl').textContent='GST @ '+g.rate+'%'+(g.exclusive?' (added)':' (incl.)');
+  $('ivGst').textContent=fmt(g.gst);
+  $('ivGrand').textContent=rupee(g.final);
+  $('ivWords').textContent=inWords(g.final);
 
   // payment summary + bank
-  $('ivPayTotal').textContent=rupee(grand);
+  $('ivPayTotal').textContent=rupee(g.final);
   $('ivAdv').textContent=rupee(adv);
   $('ivBal').textContent=rupee(bal);
   $('ivMode').textContent=$('payMode').value;
@@ -689,6 +738,7 @@ $('mealOpt').addEventListener('change',()=>{
 /* ---------- collect invoice object ---------- */
 function collectInvoice(){
   const c=compute();
+  const g=gstCalc();
   return{
     invoice_number:$('invNo').value, invoice_date:$('invDate').value,
     guest_name:$('gName').value, guest_phone:$('gPhone').value,
@@ -698,8 +748,10 @@ function collectInvoice(){
     meal_plan_opted:c.mealOn, meal_plan_type:c.mealOn?c.mealType:"", meal_charge:c.mealCharge,
     extra_persons:c.exP, extra_person_rate:c.exR, extra_charge:c.exCharge,
     discount_type:c.discType, discount_value:c.discVal, discount_amount:c.disc,
-    subtotal:c.sub, total_amount:+$('grandTotal').value||0, amount_in_words:inWords(+$('grandTotal').value||0),
-    advance_amount:+$('advance').value||0, balance_amount:(+$('grandTotal').value||0)-(+$('advance').value||0),
+    subtotal:c.sub,
+    net_amount:g.net, gst_exclusive:g.exclusive, gst_rate:g.rate, taxable_value:g.taxable, gst_amount:g.gst,
+    total_amount:g.final, amount_in_words:inWords(g.final),
+    advance_amount:+$('advance').value||0, balance_amount:round2(g.final-(+$('advance').value||0)),
     payment_mode:$('payMode').value
   };
 }
@@ -758,7 +810,8 @@ async function reloadInvoice(id){
     if(i.meal_plan_type)$('mealType').value=i.meal_plan_type;$('mealCharge').value=i.meal_charge;
     $('exPersons').value=i.extra_persons;$('exRate').value=i.extra_person_rate;
     $('discType').value=i.discount_type;$('discVal').value=i.discount_value;
-    lastComputedTotal=-1;$('grandTotal').value=i.total_amount;
+    $('gstAdd').checked=!!i.gst_exclusive;
+    lastComputedTotal=-1;$('grandTotal').value=(i.net_amount!=null?i.net_amount:i.total_amount);
     $('advance').value=i.advance_amount;$('payMode').value=i.payment_mode||'Cash';
     hide('pastOverlay');render();toast("Loaded "+i.invoice_number);
   }catch(e){toast("Could not load: "+e.message,true)}
@@ -839,7 +892,7 @@ function sendWhatsApp(){
   let phone=($('gPhone').value||'').replace(/\D/g,'');
   if(phone.length===10)phone='91'+phone;
   else if(phone.length===11&&phone.startsWith('0'))phone='91'+phone.slice(1);
-  const grand=+$('grandTotal').value||0, adv=+$('advance').value||0;
+  const g=gstCalc(); const adv=+$('advance').value||0;
   const msg=
 `*${CONFIG.business_name||''} — ${CONFIG.tagline||''}*
 
@@ -852,9 +905,11 @@ Dear ${$('gName').value||'Guest'}, here is your invoice summary:
 *Nights:* ${calcNights()}
 *Room:* ${$('roomCat').value} × ${$('rooms').value}
 
-*Grand Total:* ${rupee(grand)}
+*Taxable Value:* ${rupee(g.taxable)}
+*GST @ ${g.rate}%:* ${rupee(g.gst)}
+*Grand Total:* ${rupee(g.final)}
 *Advance:* ${rupee(adv)}
-*Balance Due:* ${rupee(grand-adv)}
+*Balance Due:* ${rupee(g.final-adv)}
 
 ${CONFIG.upi_id?('Pay via UPI: '+CONFIG.upi_id+'\n\n'):''}Please find the detailed invoice attached.
 Thank you for choosing us! 🙏`;
@@ -870,6 +925,7 @@ document.querySelectorAll('input,select').forEach(el=>{
 });
 
 /* ---------- init ---------- */
+applyTheme((function(){try{return localStorage.getItem('vp_theme')||'light'}catch(e){return 'light'}})());
 $('invDate').value=new Date().toISOString().slice(0,10);
 $('invNo').value=currentInvoiceNumber();
 loadConfig();
