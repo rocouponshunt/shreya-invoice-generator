@@ -264,7 +264,7 @@ table.items tbody tr:nth-child(even){background:#fafbfc}
           <input id="gName" placeholder="e.g. Rohit Sharma" autocomplete="off">
           <div class="suggest" id="gSuggest" style="display:none"></div>
         </div>
-        <div class="field full"><label>Mobile Number</label><input id="gPhone" placeholder="10-digit mobile" inputmode="numeric"></div>
+        <div class="field full"><label>Mobile Number</label><input id="gPhone" placeholder="10-digit mobile" inputmode="numeric" maxlength="10"></div>
       </div>
     </div>
 
@@ -485,9 +485,9 @@ let CONFIG = {
   address:"125 Satyam Vihar, Bhoopatawala, Haridwar, Uttarakhand",
   phone:"8899292999", email:"info.vantarahotels@gmail.com", website:"www.vantarahotels.co.in",
   gstin:"05CEKPG0954B1ZY", pan:"",
-  logo:"", signature:"",
+  logo:"https://lh3.googleusercontent.com/sitesv/AA5AbUA8mS4jSxDV3wao5J95NaILLMpHOd2qCrxKO2NQrj-hkbk8LWpwaQRVGQ285VAVa8slY6XTp78OtPmHcdeT4s8HEOHWa_TLcjoAIDOe3hIQobx1V2HsT0zAeotZTdy3FwPbzzsoFbNbLhPt6qoxe-pvrgQvzREyFxFkw3-H-s6bGfi0FHoVDWm4Kpolltw=w16383", signature:"",
   bank_name:"", bank_account_name:"", bank_account_no:"", bank_ifsc:"", upi_id:"",
-  terms:["Check-in: 12:00 PM · Check-out: 11:00 AM.","Advance paid is non-refundable.","Late check-out / early check-in is chargeable extra and subject to availability."]
+  terms:["Check-in: 1:00 PM · Check-out: 11:00 AM.","Advance paid is non-refundable.","Late check-out / early check-in is chargeable extra and subject to availability."]
 };
 let ROOM_CATEGORIES = ["Deluxe","Super Deluxe","Suite"];
 let API_OK = false;
@@ -546,7 +546,7 @@ function lsGet(k,def){try{const v=localStorage.getItem(k);return v===null?def:v}
 function lsSet(k,v){try{localStorage.setItem(k,v);return true}catch(e){return false}}
 function getCounter(){const v=parseInt(lsGet(LS_COUNTER,String(memCounter)),10);return isNaN(v)||v<1?1:v}
 function setCounter(n){memCounter=n;lsSet(LS_COUNTER,String(n))}
-function padNo(n){return 'VP-'+String(n).padStart(5,'0')}            // VP-00001, VP-00002 …
+function padNo(n){return 'VP-SHREYA-'+String(n).padStart(5,'0')}   // VP-SHREYA-00001 …
 function currentInvoiceNumber(){return padNo(getCounter())}
 function commitNumber(){ // bump only when the on-screen number is the active pending one
   const cur=getCounter();
@@ -628,8 +628,6 @@ function render(){
   $('ivName').innerHTML = (CONFIG.business_name||"").replace(/Premium/i,'<span class="em">Premium</span>') || "—";
   $('ivTag').textContent = CONFIG.tagline||"";
   $('ivFooterName').textContent = CONFIG.business_name||"";
-  const logo=$('ivLogo');
-  if(CONFIG.logo){logo.outerHTML='<img class="inv-logo" id="ivLogo" src="'+CONFIG.logo+'" alt="logo">';}
   $('ivContact').innerHTML =
     (CONFIG.address?CONFIG.address+"<br>":"")+
     (CONFIG.phone?"<b>Ph:</b> "+CONFIG.phone+"  ":"")+
@@ -691,6 +689,21 @@ function render(){
   $('ivTerms').innerHTML = terms.length? terms.map(t=>`<li>${t}</li>`).join("") : "<li>—</li>";
 }
 
+/* ---------- logo (cross-origin safe, with fallback) ---------- */
+function applyLogo(){
+  if(!CONFIG.logo) return;
+  const cur=$('ivLogo'); if(!cur||!cur.parentNode) return;
+  if(cur.tagName==='IMG' && cur.getAttribute('src')===CONFIG.logo) return; // already set
+  const img=document.createElement('img');
+  img.className='inv-logo'; img.id='ivLogo'; img.alt='logo'; img.crossOrigin='anonymous';
+  img.onerror=function(){
+    const ph=document.createElement('div'); ph.className='inv-logo placeholder'; ph.id='ivLogo'; ph.textContent='V';
+    const c=$('ivLogo'); if(c&&c.parentNode) c.parentNode.replaceChild(ph,c);
+  };
+  img.src=CONFIG.logo;
+  cur.parentNode.replaceChild(img,cur);
+}
+
 /* ---------- load config from edge function ---------- */
 async function loadConfig(){
   const pill=$('connPill');
@@ -704,15 +717,23 @@ async function loadConfig(){
     API_OK=false;
     pill.textContent="● Local mode — saves on this device";pill.className="pill warn";
   }
-  // fill room category dropdown
   $('roomCat').innerHTML=ROOM_CATEGORIES.map(r=>`<option>${r}</option>`).join("");
+  applyLogo();
   render();
 }
 
 /* ---------- guest autofill ---------- */
 let gtimer;
-$('gName').addEventListener('input',()=>{render();debouncedSearch($('gName').value)});
-$('gPhone').addEventListener('input',()=>{render();debouncedSearch($('gPhone').value)});
+$('gName').addEventListener('input',e=>{
+  const el=e.target, pos=el.selectionStart;
+  el.value=el.value.replace(/(^|\s)([a-z])/g,(m,p,c)=>p+c.toUpperCase()); // capitalise each word
+  try{el.setSelectionRange(pos,pos)}catch(_){}
+  render();debouncedSearch(el.value);
+});
+$('gPhone').addEventListener('input',e=>{
+  e.target.value=e.target.value.replace(/\D/g,'').slice(0,10); // digits only, max 10
+  render();debouncedSearch(e.target.value);
+});
 function debouncedSearch(q){
   clearTimeout(gtimer);
   if(!API_OK||!q||q.length<2){$('gSuggest').style.display='none';return}
