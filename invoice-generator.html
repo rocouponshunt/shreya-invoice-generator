@@ -1,0 +1,819 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Vantara Premium — Invoice Generator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600;700&family=Jost:wght@300;400;500;600&family=Cormorant+Garamond:wght@500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<style>
+:root{
+  --navy:#0A2540;        /* deep royal blue */
+  --navy-2:#102A43;
+  --gold:#C9A24B;        /* premium gold */
+  --gold-2:#E7C97A;
+  --ink:#1c2733;
+  --muted:#6b7a8d;
+  --line:#e6e9ee;
+  --bg:#0c1826;
+  --paper:#ffffff;
+  --soft:#f4f6f9;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{
+  font-family:'Jost',sans-serif;color:var(--ink);
+  background:
+    radial-gradient(1200px 600px at 80% -10%, rgba(201,162,75,.18), transparent 60%),
+    radial-gradient(900px 500px at -10% 110%, rgba(16,42,67,.55), transparent 60%),
+    linear-gradient(180deg,#0a1622,#0c1826);
+  min-height:100vh;
+}
+
+/* ---------- App chrome ---------- */
+.appbar{
+  display:flex;align-items:center;gap:14px;
+  padding:16px 26px;border-bottom:1px solid rgba(201,162,75,.25);
+  background:linear-gradient(90deg,rgba(10,37,64,.9),rgba(12,24,38,.6));
+  position:sticky;top:0;z-index:30;backdrop-filter:blur(8px);
+}
+.brandmark{
+  width:40px;height:40px;border-radius:9px;flex:none;
+  background:linear-gradient(135deg,var(--gold),var(--gold-2));
+  display:grid;place-items:center;color:var(--navy);font-family:'Playfair Display',serif;
+  font-weight:700;font-size:20px;box-shadow:0 6px 18px rgba(201,162,75,.35);
+}
+.appbar h1{margin:0;color:#fff;font-family:'Playfair Display',serif;font-weight:600;font-size:19px;letter-spacing:.3px}
+.appbar h1 span{color:var(--gold-2);font-style:italic}
+.appbar .sub{color:#9fb2c7;font-size:12px;margin-top:1px}
+.appbar .spacer{flex:1}
+.pill{font-size:11px;color:#cfe;border:1px solid rgba(201,162,75,.4);color:var(--gold-2);padding:5px 11px;border-radius:999px}
+.pill.warn{color:#ffd2a8;border-color:rgba(255,170,90,.4)}
+
+.layout{display:grid;grid-template-columns:minmax(360px,440px) 1fr;gap:0;align-items:start}
+@media(max-width:980px){.layout{grid-template-columns:1fr}}
+
+/* ---------- Form panel ---------- */
+.form-panel{
+  padding:22px 22px 120px;max-height:calc(100vh - 73px);overflow:auto;
+  border-right:1px solid rgba(201,162,75,.15);
+}
+.form-panel::-webkit-scrollbar{width:9px}
+.form-panel::-webkit-scrollbar-thumb{background:rgba(201,162,75,.35);border-radius:9px}
+.card{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.07);border-radius:14px;padding:16px;margin-bottom:14px}
+.card h3{margin:0 0 12px;color:var(--gold-2);font-family:'Cormorant Garamond',serif;font-size:18px;letter-spacing:.4px;font-weight:600;
+  display:flex;align-items:center;gap:8px}
+.card h3::before{content:"";width:18px;height:2px;background:linear-gradient(90deg,var(--gold),transparent);display:inline-block}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.grid.one{grid-template-columns:1fr}
+.field{display:flex;flex-direction:column;gap:5px;position:relative}
+.field.full{grid-column:1 / -1}
+label{font-size:11.5px;color:#9fb2c7;letter-spacing:.4px;text-transform:uppercase;font-weight:500}
+input,select,textarea{
+  font-family:'Jost',sans-serif;font-size:14px;color:#fff;background:rgba(8,18,30,.6);
+  border:1px solid rgba(201,162,75,.22);border-radius:9px;padding:9px 11px;outline:none;transition:.15s;
+}
+input:focus,select:focus,textarea:focus{border-color:var(--gold);box-shadow:0 0 0 3px rgba(201,162,75,.15)}
+input::placeholder{color:#5b6f84}
+select option{background:#0c1826}
+.row-inline{display:flex;align-items:center;gap:8px}
+.switch{display:inline-flex;align-items:center;gap:9px;cursor:pointer;user-select:none}
+.switch input{display:none}
+.track{width:42px;height:24px;border-radius:999px;background:rgba(255,255,255,.12);position:relative;transition:.2s;border:1px solid rgba(201,162,75,.25)}
+.track::after{content:"";position:absolute;top:2px;left:2px;width:18px;height:18px;border-radius:50%;background:#cfd8e3;transition:.2s}
+.switch input:checked + .track{background:linear-gradient(90deg,var(--gold),var(--gold-2))}
+.switch input:checked + .track::after{transform:translateX(18px);background:#fff}
+.switch span{color:#cfd8e3;font-size:13px}
+.hint{font-size:11px;color:#7e90a4}
+.suggest{position:absolute;top:62px;left:0;right:0;background:#0e1f31;border:1px solid rgba(201,162,75,.35);border-radius:10px;z-index:20;overflow:hidden;box-shadow:0 16px 40px rgba(0,0,0,.5)}
+.suggest div{padding:9px 12px;cursor:pointer;font-size:13px;color:#dfe7ef;border-bottom:1px solid rgba(255,255,255,.05)}
+.suggest div:hover{background:rgba(201,162,75,.15)}
+.suggest small{color:#8aa0b6}
+
+/* ---------- Preview panel ---------- */
+.preview-panel{padding:26px;display:flex;flex-direction:column;align-items:center;gap:18px}
+.toolbar{display:flex;flex-wrap:wrap;gap:10px;width:100%;max-width:720px;justify-content:center}
+.btn{font-family:'Jost',sans-serif;font-size:13.5px;font-weight:500;letter-spacing:.3px;border:none;border-radius:10px;padding:11px 16px;cursor:pointer;
+  display:inline-flex;align-items:center;gap:8px;transition:.15s;color:#fff;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12)}
+.btn:hover{transform:translateY(-1px);background:rgba(255,255,255,.14)}
+.btn.gold{background:linear-gradient(135deg,var(--gold),var(--gold-2));color:var(--navy);border:none;font-weight:600;box-shadow:0 8px 22px rgba(201,162,75,.35)}
+.btn.wa{background:linear-gradient(135deg,#1faf54,#25d366);color:#04210f;font-weight:600;border:none}
+.btn.ghost{background:transparent}
+.btn svg{width:16px;height:16px}
+
+/* ---------- The invoice document ---------- */
+#invoice{
+  width:720px;max-width:100%;background:var(--paper);color:var(--ink);border-radius:6px;overflow:hidden;
+  box-shadow:0 30px 80px rgba(0,0,0,.5);position:relative;
+}
+.inv-pad{padding:34px 38px 30px}
+.inv-top{display:flex;justify-content:space-between;gap:20px;align-items:flex-start}
+.inv-brand{display:flex;gap:16px;align-items:center}
+.inv-logo{width:66px;height:66px;border-radius:10px;object-fit:contain;background:var(--soft);border:1px solid var(--line);flex:none}
+.inv-logo.placeholder{display:grid;place-items:center;font-family:'Playfair Display',serif;color:var(--navy);font-weight:700;font-size:26px;background:linear-gradient(135deg,#f7eecb,#fff)}
+.inv-name{font-family:'Playfair Display',serif;font-size:23px;font-weight:700;color:var(--navy);line-height:1.1}
+.inv-name .em{color:var(--gold);font-style:italic}
+.inv-tag{font-size:11.5px;color:var(--muted);letter-spacing:1.5px;text-transform:uppercase;margin-top:3px}
+.inv-contact{text-align:right;font-size:11.5px;color:var(--muted);line-height:1.6}
+.inv-contact b{color:var(--ink)}
+.gold-rule{height:3px;background:linear-gradient(90deg,var(--gold),var(--gold-2),transparent);margin:18px 0 0;border-radius:3px}
+
+.inv-title-row{display:flex;justify-content:space-between;align-items:flex-end;margin-top:20px}
+.inv-title{font-family:'Cormorant Garamond',serif;font-size:30px;letter-spacing:6px;color:var(--navy);font-weight:600}
+.inv-meta{text-align:right;font-size:12.5px;color:var(--ink);line-height:1.7}
+.inv-meta .k{color:var(--muted);margin-right:6px}
+.inv-meta b{color:var(--navy)}
+
+.blocks{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-top:22px}
+.block{background:var(--soft);border:1px solid var(--line);border-radius:9px;padding:13px 15px}
+.block .h{font-size:10.5px;letter-spacing:1.4px;text-transform:uppercase;color:var(--gold);font-weight:600;margin-bottom:7px}
+.block .v{font-size:13.5px;line-height:1.7;color:var(--ink)}
+.block .v .lbl{color:var(--muted)}
+.bill-name{font-family:'Playfair Display',serif;font-size:16px;color:var(--navy);font-weight:600}
+
+table.items{width:100%;border-collapse:collapse;margin-top:22px;font-size:13px}
+table.items thead th{background:var(--navy);color:#fff;font-weight:500;letter-spacing:.5px;padding:10px 12px;text-align:left;font-size:11.5px;text-transform:uppercase}
+table.items thead th.r,table.items td.r{text-align:right}
+table.items tbody td{padding:11px 12px;border-bottom:1px solid var(--line);color:var(--ink)}
+table.items tbody tr:nth-child(even){background:#fafbfc}
+.it-desc b{color:var(--navy)}
+.it-desc small{display:block;color:var(--muted);font-size:11px;margin-top:2px}
+
+.totals{display:flex;justify-content:flex-end;margin-top:14px}
+.totals table{font-size:13.5px;min-width:300px}
+.totals td{padding:6px 4px}
+.totals td.r{text-align:right;font-variant-numeric:tabular-nums}
+.totals .lbl{color:var(--muted)}
+.totals .grand td{border-top:2px solid var(--navy);padding-top:10px;font-family:'Playfair Display',serif;font-size:18px;color:var(--navy);font-weight:700}
+.totals .grand .gold-amt{color:var(--gold)}
+.words{margin-top:12px;font-size:12.5px;color:var(--ink);background:linear-gradient(90deg,#fbf6e9,#fff);border-left:3px solid var(--gold);padding:9px 13px;border-radius:0 8px 8px 0}
+.words .lbl{color:var(--muted);text-transform:uppercase;font-size:10px;letter-spacing:1px;display:block;margin-bottom:2px}
+
+.pay-row{display:grid;grid-template-columns:1.3fr 1fr;gap:18px;margin-top:20px;align-items:start}
+.bankbox{border:1px dashed var(--gold);border-radius:9px;padding:12px 14px;background:#fffdf7}
+.bankbox .h{font-size:10.5px;letter-spacing:1.4px;text-transform:uppercase;color:var(--gold);font-weight:600;margin-bottom:6px}
+.bankbox .v{font-size:12px;line-height:1.7;color:var(--ink)}
+.bankbox .v .lbl{color:var(--muted)}
+.paysummary table{width:100%;font-size:13px}
+.paysummary td{padding:5px 0}
+.paysummary td.r{text-align:right;font-variant-numeric:tabular-nums}
+.paysummary .bal{color:var(--navy);font-weight:700;font-size:15px}
+
+.sign{display:flex;justify-content:flex-end;margin-top:26px}
+.sign .box{text-align:center}
+.sign img{height:48px;object-fit:contain;display:block;margin:0 auto 4px}
+.sign .line{border-top:1.5px solid var(--ink);width:180px;margin:0 auto;padding-top:6px;font-size:12px;color:var(--muted)}
+
+.terms{margin-top:24px;border-top:1px solid var(--line);padding-top:14px}
+.terms .h{font-size:10.5px;letter-spacing:1.4px;text-transform:uppercase;color:var(--gold);font-weight:600;margin-bottom:7px}
+.terms ul{margin:0;padding-left:18px;color:var(--muted);font-size:11px;line-height:1.7}
+.inv-footer{margin-top:18px;text-align:center;font-size:11px;color:var(--muted);background:var(--soft);padding:10px;letter-spacing:.5px}
+.inv-footer b{color:var(--navy)}
+.watermark{position:absolute;inset:0;display:grid;place-items:center;pointer-events:none;opacity:.04}
+.watermark span{font-family:'Playfair Display',serif;font-size:120px;color:var(--navy);transform:rotate(-18deg)}
+
+/* ---------- Modal / toast ---------- */
+.overlay{position:fixed;inset:0;background:rgba(6,12,20,.7);display:none;place-items:center;z-index:50;backdrop-filter:blur(3px)}
+.overlay.show{display:grid}
+.modal{background:#0e1f31;border:1px solid rgba(201,162,75,.3);border-radius:16px;padding:24px;width:min(520px,92vw);color:#fff;box-shadow:0 30px 80px rgba(0,0,0,.6)}
+.modal h2{margin:0 0 6px;font-family:'Playfair Display',serif;color:var(--gold-2);font-weight:600}
+.modal p{margin:0 0 16px;color:#9fb2c7;font-size:13px}
+.size-opts{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.size-opt{border:1px solid rgba(201,162,75,.3);border-radius:12px;padding:18px;text-align:center;cursor:pointer;transition:.15s;background:rgba(255,255,255,.03)}
+.size-opt:hover{background:rgba(201,162,75,.15);transform:translateY(-2px)}
+.size-opt b{display:block;font-family:'Playfair Display',serif;font-size:22px;color:var(--gold-2)}
+.size-opt small{color:#9fb2c7}
+.modal .close{margin-top:16px;text-align:center}
+.modal .x{background:transparent;border:1px solid rgba(255,255,255,.2);color:#cfd8e3;border-radius:8px;padding:8px 16px;cursor:pointer}
+.inv-list{max-height:50vh;overflow:auto;margin-top:6px}
+.inv-list .item{display:flex;justify-content:space-between;gap:10px;padding:11px 12px;border:1px solid rgba(255,255,255,.08);border-radius:9px;margin-bottom:8px;cursor:pointer}
+.inv-list .item:hover{border-color:var(--gold);background:rgba(201,162,75,.08)}
+.inv-list .item b{color:#fff}
+.inv-list .item small{color:#8aa0b6;display:block}
+.inv-list .item .amt{color:var(--gold-2);font-weight:600;white-space:nowrap}
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(20px);background:#0e1f31;border:1px solid rgba(201,162,75,.4);color:#fff;padding:12px 20px;border-radius:10px;opacity:0;transition:.25s;z-index:60;font-size:13.5px;box-shadow:0 16px 40px rgba(0,0,0,.5)}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+.toast.err{border-color:#ff8a8a;color:#ffd6d6}
+
+/* ---------- Print ---------- */
+@media print{
+  body{background:#fff}
+  .appbar,.form-panel,.toolbar,.overlay,.toast{display:none !important}
+  .preview-panel{padding:0}
+  .layout{display:block}
+  #invoice{box-shadow:none;width:100%;border-radius:0}
+}
+</style>
+</head>
+<body>
+
+<div class="appbar">
+  <div class="brandmark">V</div>
+  <div>
+    <h1>Vantara <span>Premium</span> · Invoice Generator</h1>
+    <div class="sub">Hotel Shreya Galaxy — Haridwar</div>
+  </div>
+  <div class="spacer"></div>
+  <span class="pill" id="connPill">Connecting…</span>
+</div>
+
+<div class="layout">
+  <!-- ====================== FORM ====================== -->
+  <div class="form-panel">
+
+    <div class="card">
+      <h3>Invoice</h3>
+      <div class="grid">
+        <div class="field">
+          <label>Invoice No.</label>
+          <div class="row-inline">
+            <input id="invNo" readonly>
+            <button class="btn ghost" style="padding:9px 10px" title="Regenerate" onclick="newInvoiceNo()">⟳</button>
+          </div>
+        </div>
+        <div class="field"><label>Invoice Date</label><input type="date" id="invDate"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>Guest</h3>
+      <div class="grid">
+        <div class="field full">
+          <label>Guest Name <span class="hint">(type to find returning guest)</span></label>
+          <input id="gName" placeholder="e.g. Rohit Sharma" autocomplete="off">
+          <div class="suggest" id="gSuggest" style="display:none"></div>
+        </div>
+        <div class="field full"><label>Mobile Number</label><input id="gPhone" placeholder="10-digit mobile" inputmode="numeric"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>Stay</h3>
+      <div class="grid">
+        <div class="field"><label>Check-in</label><input type="date" id="cin"></div>
+        <div class="field"><label>Check-out</label><input type="date" id="cout"></div>
+        <div class="field"><label>Nights</label><input id="nights" readonly></div>
+        <div class="field"><label>No. of Rooms</label><input type="number" id="rooms" min="1" value="1"></div>
+        <div class="field"><label>No. of People</label><input type="number" id="people" min="1" value="2"></div>
+        <div class="field"><label>Room Category</label><select id="roomCat"></select></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>Charges</h3>
+      <div class="grid">
+        <div class="field full"><label>Room Tariff (per room / night)</label><input type="number" id="roomRate" min="0" value="0" placeholder="₹"></div>
+        <div class="field full" style="margin-top:2px">
+          <label class="switch"><input type="checkbox" id="mealOpt"><span class="track"></span><span>Meal Plan included</span></label>
+        </div>
+        <div class="field"><label>Meal Plan</label>
+          <select id="mealType" disabled>
+            <option value="EP">EP — Room only</option>
+            <option value="CP">CP — Breakfast</option>
+            <option value="MAP">MAP — Breakfast + 1 meal</option>
+            <option value="AP">AP — All meals</option>
+          </select>
+        </div>
+        <div class="field"><label>Meal Charge (flat)</label><input type="number" id="mealCharge" min="0" value="0" disabled></div>
+        <div class="field"><label>Extra Persons</label><input type="number" id="exPersons" min="0" value="0"></div>
+        <div class="field"><label>Extra Person Rate / night</label><input type="number" id="exRate" min="0" value="0"></div>
+        <div class="field"><label>Discount</label><input type="number" id="discVal" min="0" value="0"></div>
+        <div class="field"><label>Discount Type</label>
+          <select id="discType"><option value="amount">₹ Amount</option><option value="percent">% Percent</option></select>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>Payment</h3>
+      <div class="grid">
+        <div class="field full"><label>Grand Total <span class="hint">(auto — editable)</span></label><input type="number" id="grandTotal" min="0" value="0"></div>
+        <div class="field"><label>Advance Received</label><input type="number" id="advance" min="0" value="0"></div>
+        <div class="field"><label>Balance</label><input id="balance" readonly></div>
+        <div class="field full"><label>Mode of Payment</label>
+          <select id="payMode"><option>Cash</option><option>UPI</option><option>Card</option><option>Bank Transfer</option><option>Other</option></select>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ====================== PREVIEW ====================== -->
+  <div class="preview-panel">
+    <div class="toolbar">
+      <button class="btn ghost" onclick="loadPastInvoices()">📁 Past Invoices</button>
+      <button class="btn ghost" onclick="resetForm()">＋ New</button>
+      <button class="btn" onclick="saveInvoice()">💾 Save</button>
+      <button class="btn" onclick="chooseSize(doPrint)">🖨 Print</button>
+      <button class="btn" onclick="chooseSize(doPDF)">⬇ PDF</button>
+      <button class="btn gold" onclick="doJPG()">⬇ JPG (A5)</button>
+      <button class="btn wa" onclick="sendWhatsApp()">WhatsApp</button>
+    </div>
+
+    <div id="invoice">
+      <div class="watermark"><span>VANTARA</span></div>
+      <div class="inv-pad">
+        <div class="inv-top">
+          <div class="inv-brand">
+            <div class="inv-logo placeholder" id="ivLogo">V</div>
+            <div>
+              <div class="inv-name" id="ivName">Vantara Premium</div>
+              <div class="inv-tag" id="ivTag">Hotel Shreya Galaxy</div>
+            </div>
+          </div>
+          <div class="inv-contact" id="ivContact">
+            <b>—</b>
+          </div>
+        </div>
+        <div class="gold-rule"></div>
+
+        <div class="inv-title-row">
+          <div class="inv-title">INVOICE</div>
+          <div class="inv-meta">
+            <div><span class="k">Invoice No.</span><b id="ivNo">—</b></div>
+            <div><span class="k">Date</span><b id="ivDate">—</b></div>
+          </div>
+        </div>
+
+        <div class="blocks">
+          <div class="block">
+            <div class="h">Billed To</div>
+            <div class="v">
+              <div class="bill-name" id="ivGName">—</div>
+              <div><span class="lbl">Mobile:</span> <span id="ivGPhone">—</span></div>
+            </div>
+          </div>
+          <div class="block">
+            <div class="h">Stay Details</div>
+            <div class="v">
+              <div><span class="lbl">Check-in:</span> <span id="ivCin">—</span></div>
+              <div><span class="lbl">Check-out:</span> <span id="ivCout">—</span></div>
+              <div><span class="lbl">Nights:</span> <span id="ivNights">—</span> &nbsp;·&nbsp; <span class="lbl">Guests:</span> <span id="ivPeople">—</span></div>
+            </div>
+          </div>
+        </div>
+
+        <table class="items">
+          <thead>
+            <tr><th>Description</th><th class="r">Qty</th><th class="r">Rate (₹)</th><th class="r">Amount (₹)</th></tr>
+          </thead>
+          <tbody id="ivItems"></tbody>
+        </table>
+
+        <div class="totals">
+          <table>
+            <tr><td class="lbl">Sub Total</td><td class="r" id="ivSub">0.00</td></tr>
+            <tr id="ivDiscRow"><td class="lbl">Discount</td><td class="r" id="ivDisc">0.00</td></tr>
+            <tr class="grand"><td>Grand Total</td><td class="r gold-amt" id="ivGrand">₹0.00</td></tr>
+          </table>
+        </div>
+
+        <div class="words"><span class="lbl">Amount in words</span><span id="ivWords">—</span></div>
+
+        <div class="pay-row">
+          <div class="bankbox">
+            <div class="h">Payment Details</div>
+            <div class="v" id="ivBank">—</div>
+          </div>
+          <div class="paysummary">
+            <table>
+              <tr><td>Grand Total</td><td class="r" id="ivPayTotal">₹0.00</td></tr>
+              <tr><td>Advance Received</td><td class="r" id="ivAdv">₹0.00</td></tr>
+              <tr><td class="bal">Balance Due</td><td class="r bal" id="ivBal">₹0.00</td></tr>
+              <tr><td class="lbl" style="color:var(--muted)">Mode</td><td class="r" id="ivMode">—</td></tr>
+            </table>
+          </div>
+        </div>
+
+        <div class="sign">
+          <div class="box">
+            <img id="ivSign" alt="" style="display:none">
+            <div class="line">Authorised Signatory</div>
+          </div>
+        </div>
+
+        <div class="terms">
+          <div class="h">Terms &amp; Conditions</div>
+          <ul id="ivTerms"><li>—</li></ul>
+        </div>
+      </div>
+      <div class="inv-footer">Thank you for choosing <b id="ivFooterName">Vantara Premium</b> · This is a computer-generated invoice.</div>
+    </div>
+  </div>
+</div>
+
+<!-- size chooser -->
+<div class="overlay" id="sizeOverlay">
+  <div class="modal">
+    <h2>Choose paper size</h2>
+    <p>Pick the format for this document.</p>
+    <div class="size-opts">
+      <div class="size-opt" onclick="pickSize('a5')"><b>A5</b><small>148 × 210 mm · compact</small></div>
+      <div class="size-opt" onclick="pickSize('a4')"><b>A4</b><small>210 × 297 mm · full page</small></div>
+    </div>
+    <div class="close"><button class="x" onclick="hide('sizeOverlay')">Cancel</button></div>
+  </div>
+</div>
+
+<!-- past invoices -->
+<div class="overlay" id="pastOverlay">
+  <div class="modal">
+    <h2>Past Invoices</h2>
+    <p>Search by guest name, phone or invoice number, then tap to reload.</p>
+    <input id="pastSearch" placeholder="Search…" oninput="loadPastInvoices()" style="width:100%">
+    <div class="inv-list" id="pastList"><p>Loading…</p></div>
+    <div class="close"><button class="x" onclick="hide('pastOverlay')">Close</button></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ============================================================
+   CONFIG — paste your Supabase Edge Function URL + passcode
+   ============================================================ */
+const API_URL = "PASTE_YOUR_EDGE_FUNCTION_URL_HERE";   // e.g. https://xxxx.supabase.co/functions/v1/invoice-api
+const APP_KEY = "PASTE_YOUR_PASSCODE_HERE";             // must match the passcode set in the Lovable admin
+
+/* ---- fallback business config (used if API is not reachable) ---- */
+let CONFIG = {
+  business_name:"Vantara Premium", tagline:"Hotel Shreya Galaxy",
+  address:"125 Satyam Vihar, Bhoopatawala, Haridwar, Uttarakhand",
+  phone:"8899292999", email:"info.vantarahotels@gmail.com", website:"www.vantarahotels.co.in",
+  gstin:"05CEKPG0954B1ZY", pan:"",
+  logo:"", signature:"",
+  bank_name:"", bank_account_name:"", bank_account_no:"", bank_ifsc:"", upi_id:"",
+  terms:["Check-in: 12:00 PM · Check-out: 11:00 AM.","Advance paid is non-refundable.","Late check-out / early check-in is chargeable extra and subject to availability."]
+};
+let ROOM_CATEGORIES = ["Deluxe","Super Deluxe","Suite"];
+let API_OK = false;
+
+const $ = id => document.getElementById(id);
+const fmt = n => Number(n||0).toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2});
+const rupee = n => "₹"+fmt(n);
+
+/* ---------- API helper (everything goes through the edge function) ---------- */
+async function api(action, params={}){
+  if(!API_URL || API_URL.startsWith("PASTE")) throw new Error("API not configured");
+  const res = await fetch(API_URL,{
+    method:"POST",
+    headers:{"Content-Type":"application/json","x-app-key":APP_KEY},
+    body:JSON.stringify({action,...params})
+  });
+  const json = await res.json();
+  if(!json.ok) throw new Error(json.error||"Request failed");
+  return json.data;
+}
+
+/* ---------- toast ---------- */
+let toastT;
+function toast(msg,err){const t=$('toast');t.textContent=msg;t.className='toast show'+(err?' err':'');clearTimeout(toastT);toastT=setTimeout(()=>t.className='toast',3200)}
+
+/* ---------- invoice number ---------- */
+function genInvoiceNo(){
+  const chars="ABCDEFGHJKLMNPQRSTUVWXYZ23456789";let s="";
+  for(let i=0;i<6;i++)s+=chars[Math.floor(Math.random()*chars.length)];
+  return "VP-"+s;
+}
+function newInvoiceNo(){$('invNo').value=genInvoiceNo();render()}
+
+/* ---------- amount in words (Indian system) ---------- */
+function inWords(num){
+  num=Math.round(Number(num)||0);
+  if(num===0) return "Rupees Zero Only";
+  const a=["","One","Two","Three","Four","Five","Six","Seven","Eight","Nine","Ten","Eleven","Twelve","Thirteen","Fourteen","Fifteen","Sixteen","Seventeen","Eighteen","Nineteen"];
+  const b=["","","Twenty","Thirty","Forty","Fifty","Sixty","Seventy","Eighty","Ninety"];
+  function two(n){return n<20?a[n]:b[Math.floor(n/10)]+(n%10?" "+a[n%10]:"")}
+  function three(n){return (n>=100?a[Math.floor(n/100)]+" Hundred"+(n%100?" ":""):"")+(n%100?two(n%100):"")}
+  let out="";
+  const crore=Math.floor(num/10000000);num%=10000000;
+  const lakh=Math.floor(num/100000);num%=100000;
+  const thou=Math.floor(num/1000);num%=1000;
+  const hund=num;
+  if(crore)out+=three(crore)+" Crore ";
+  if(lakh)out+=two(lakh)+" Lakh ";
+  if(thou)out+=two(thou)+" Thousand ";
+  if(hund)out+=three(hund);
+  return "Rupees "+out.trim().replace(/\s+/g," ")+" Only";
+}
+
+/* ---------- date helpers ---------- */
+function fmtDate(v){if(!v)return "—";const d=new Date(v+"T00:00:00");if(isNaN(d))return v;return d.toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'})}
+function calcNights(){
+  const ci=$('cin').value, co=$('cout').value;
+  if(ci&&co){const d=(new Date(co)-new Date(ci))/86400000;return d>0?d:0}
+  return 0;
+}
+
+/* ---------- core calculation + render ---------- */
+let lastComputedTotal=0;
+function compute(){
+  const nights=calcNights();$('nights').value=nights;
+  const rooms=+$('rooms').value||0, rate=+$('roomRate').value||0;
+  const roomCharge=rate*rooms*nights;
+  const mealOn=$('mealOpt').checked;
+  const mealCharge=mealOn?(+$('mealCharge').value||0):0;
+  const exP=+$('exPersons').value||0, exR=+$('exRate').value||0;
+  const exCharge=exP*exR*nights;
+  const sub=roomCharge+mealCharge+exCharge;
+  let disc=0;const dv=+$('discVal').value||0;
+  if($('discType').value==='percent') disc=sub*dv/100; else disc=dv;
+  if(disc>sub)disc=sub;
+  const computedGrand=Math.max(0,sub-disc);
+  // keep grand total in sync unless user manually edited it away from the last computed value
+  const gt=$('grandTotal');
+  if(gt.value===''||+gt.value===lastComputedTotal) gt.value=Math.round(computedGrand);
+  lastComputedTotal=Math.round(computedGrand);
+  return {nights,rooms,rate,roomCharge,mealOn,mealType:$('mealType').value,mealCharge,exP,exR,exCharge,sub,disc,
+          discType:$('discType').value,discVal:dv};
+}
+
+function render(){
+  const c=compute();
+  const grand=+$('grandTotal').value||0;
+  const adv=+$('advance').value||0;
+  const bal=grand-adv;$('balance').value=Math.round(bal);
+
+  // header / business
+  $('ivName').innerHTML = (CONFIG.business_name||"").replace(/Premium/i,'<span class="em">Premium</span>') || "—";
+  $('ivTag').textContent = CONFIG.tagline||"";
+  $('ivFooterName').textContent = CONFIG.business_name||"";
+  const logo=$('ivLogo');
+  if(CONFIG.logo){logo.outerHTML='<img class="inv-logo" id="ivLogo" src="'+CONFIG.logo+'" alt="logo">';}
+  $('ivContact').innerHTML =
+    (CONFIG.address?CONFIG.address+"<br>":"")+
+    (CONFIG.phone?"<b>Ph:</b> "+CONFIG.phone+"  ":"")+
+    (CONFIG.email?"<br>"+CONFIG.email:"")+
+    (CONFIG.website?"<br>"+CONFIG.website:"")+
+    (CONFIG.gstin?"<br><b>GSTIN:</b> "+CONFIG.gstin:"")+
+    (CONFIG.pan?"<br><b>PAN:</b> "+CONFIG.pan:"");
+
+  $('ivNo').textContent=$('invNo').value;
+  $('ivDate').textContent=fmtDate($('invDate').value);
+  $('ivGName').textContent=$('gName').value||"—";
+  $('ivGPhone').textContent=$('gPhone').value||"—";
+  $('ivCin').textContent=fmtDate($('cin').value);
+  $('ivCout').textContent=fmtDate($('cout').value);
+  $('ivNights').textContent=c.nights;
+  $('ivPeople').textContent=($('people').value||"—")+(c.exP?(" (+"+c.exP+" extra)"):"");
+
+  // items
+  let rows="";
+  const cat=$('roomCat').value||"Room";
+  rows+=`<tr><td class="it-desc"><b>${cat} Room</b><small>${c.rooms} room(s) × ${c.nights} night(s)</small></td><td class="r">${c.rooms*c.nights}</td><td class="r">${fmt(c.rate)}</td><td class="r">${fmt(c.roomCharge)}</td></tr>`;
+  if(c.mealOn&&c.mealCharge>0)
+    rows+=`<tr><td class="it-desc"><b>Meal Plan — ${c.mealType}</b><small>Flat charge</small></td><td class="r">1</td><td class="r">${fmt(c.mealCharge)}</td><td class="r">${fmt(c.mealCharge)}</td></tr>`;
+  if(c.exP>0&&c.exR>0)
+    rows+=`<tr><td class="it-desc"><b>Extra Person</b><small>${c.exP} × ${c.nights} night(s)</small></td><td class="r">${c.exP*c.nights}</td><td class="r">${fmt(c.exR)}</td><td class="r">${fmt(c.exCharge)}</td></tr>`;
+  $('ivItems').innerHTML=rows;
+
+  $('ivSub').textContent=fmt(c.sub);
+  const discRow=$('ivDiscRow');
+  if(c.disc>0){discRow.style.display='';$('ivDisc').textContent="− "+fmt(c.disc)+(c.discType==='percent'?"  ("+c.discVal+"%)":"");}
+  else discRow.style.display='none';
+  $('ivGrand').textContent=rupee(grand);
+  $('ivWords').textContent=inWords(grand);
+
+  // payment summary + bank
+  $('ivPayTotal').textContent=rupee(grand);
+  $('ivAdv').textContent=rupee(adv);
+  $('ivBal').textContent=rupee(bal);
+  $('ivMode').textContent=$('payMode').value;
+  let bank="";
+  if(CONFIG.bank_name||CONFIG.bank_account_no||CONFIG.upi_id){
+    if(CONFIG.bank_name)bank+='<span class="lbl">Bank:</span> '+CONFIG.bank_name+'<br>';
+    if(CONFIG.bank_account_name)bank+='<span class="lbl">A/C Name:</span> '+CONFIG.bank_account_name+'<br>';
+    if(CONFIG.bank_account_no)bank+='<span class="lbl">A/C No:</span> '+CONFIG.bank_account_no+'<br>';
+    if(CONFIG.bank_ifsc)bank+='<span class="lbl">IFSC:</span> '+CONFIG.bank_ifsc+'<br>';
+    if(CONFIG.upi_id)bank+='<span class="lbl">UPI:</span> '+CONFIG.upi_id;
+  } else bank="—";
+  $('ivBank').innerHTML=bank;
+
+  // signature
+  const sg=$('ivSign');
+  if(CONFIG.signature){sg.src=CONFIG.signature;sg.style.display='block';} else sg.style.display='none';
+
+  // terms
+  const terms=(CONFIG.terms&&CONFIG.terms.length)?CONFIG.terms:[];
+  $('ivTerms').innerHTML = terms.length? terms.map(t=>`<li>${t}</li>`).join("") : "<li>—</li>";
+}
+
+/* ---------- load config from edge function ---------- */
+async function loadConfig(){
+  const pill=$('connPill');
+  try{
+    const d=await api('getConfig');
+    if(d.config) CONFIG=Object.assign(CONFIG,d.config);
+    if(d.roomCategories&&d.roomCategories.length) ROOM_CATEGORIES=d.roomCategories;
+    API_OK=true;
+    pill.textContent="● Connected to admin";pill.className="pill";
+  }catch(e){
+    API_OK=false;
+    pill.textContent="● Offline — using defaults";pill.className="pill warn";
+  }
+  // fill room category dropdown
+  $('roomCat').innerHTML=ROOM_CATEGORIES.map(r=>`<option>${r}</option>`).join("");
+  render();
+}
+
+/* ---------- guest autofill ---------- */
+let gtimer;
+$('gName').addEventListener('input',()=>{render();debouncedSearch($('gName').value)});
+$('gPhone').addEventListener('input',()=>{render();debouncedSearch($('gPhone').value)});
+function debouncedSearch(q){
+  clearTimeout(gtimer);
+  if(!API_OK||!q||q.length<2){$('gSuggest').style.display='none';return}
+  gtimer=setTimeout(async()=>{
+    try{
+      const d=await api('searchGuests',{query:q});
+      const box=$('gSuggest');
+      if(d.guests&&d.guests.length){
+        box.innerHTML=d.guests.map(g=>`<div onclick='pickGuest(${JSON.stringify(g).replace(/'/g,"&#39;")})'>${g.name} <small>· ${g.phone||''}</small></div>`).join("");
+        box.style.display='';
+      } else box.style.display='none';
+    }catch(e){$('gSuggest').style.display='none'}
+  },300);
+}
+function pickGuest(g){$('gName').value=g.name||'';$('gPhone').value=g.phone||'';$('gSuggest').style.display='none';render();toast("Guest loaded")}
+document.addEventListener('click',e=>{if(!e.target.closest('#gName')&&!e.target.closest('#gSuggest'))$('gSuggest').style.display='none'});
+
+/* ---------- meal toggle ---------- */
+$('mealOpt').addEventListener('change',()=>{
+  const on=$('mealOpt').checked;$('mealType').disabled=!on;$('mealCharge').disabled=!on;render();
+});
+
+/* ---------- collect invoice object ---------- */
+function collectInvoice(){
+  const c=compute();
+  return{
+    invoice_number:$('invNo').value, invoice_date:$('invDate').value,
+    guest_name:$('gName').value, guest_phone:$('gPhone').value,
+    checkin_date:$('cin').value, checkout_date:$('cout').value, nights:c.nights,
+    num_rooms:+$('rooms').value||0, num_people:+$('people').value||0, room_category:$('roomCat').value,
+    room_rate:c.rate, room_charge:c.roomCharge,
+    meal_plan_opted:c.mealOn, meal_plan_type:c.mealOn?c.mealType:"", meal_charge:c.mealCharge,
+    extra_persons:c.exP, extra_person_rate:c.exR, extra_charge:c.exCharge,
+    discount_type:c.discType, discount_value:c.discVal, discount_amount:c.disc,
+    subtotal:c.sub, total_amount:+$('grandTotal').value||0, amount_in_words:inWords(+$('grandTotal').value||0),
+    advance_amount:+$('advance').value||0, balance_amount:(+$('grandTotal').value||0)-(+$('advance').value||0),
+    payment_mode:$('payMode').value
+  };
+}
+
+/* ---------- save ---------- */
+async function saveInvoice(){
+  if(!$('gName').value){toast("Enter guest name first",true);return}
+  if(!API_OK){toast("Not connected — invoice not saved. You can still print/download.",true);return}
+  try{
+    toast("Saving…");
+    await api('saveInvoice',{invoice:collectInvoice()});
+    toast("Invoice saved ✓");
+  }catch(e){toast("Save failed: "+e.message,true)}
+}
+
+/* ---------- past invoices ---------- */
+async function loadPastInvoices(){
+  show('pastOverlay');
+  const list=$('pastList');
+  if(!API_OK){list.innerHTML="<p style='color:#ffd2a8'>Not connected to admin database.</p>";return}
+  list.innerHTML="<p>Loading…</p>";
+  try{
+    const d=await api('listInvoices',{query:$('pastSearch').value||"",limit:40});
+    if(!d.invoices||!d.invoices.length){list.innerHTML="<p>No invoices found.</p>";return}
+    list.innerHTML=d.invoices.map(i=>`<div class="item" onclick="reloadInvoice('${i.id}')">
+      <div><b>${i.invoice_number}</b><small>${i.guest_name||''} · ${i.guest_phone||''} · ${fmtDate(i.invoice_date)}</small></div>
+      <div class="amt">${rupee(i.total_amount)}</div></div>`).join("");
+  }catch(e){list.innerHTML="<p style='color:#ffd6d6'>Error: "+e.message+"</p>"}
+}
+async function reloadInvoice(id){
+  try{
+    const d=await api('getInvoice',{id});const i=d.invoice;
+    $('invNo').value=i.invoice_number;$('invDate').value=i.invoice_date;
+    $('gName').value=i.guest_name;$('gPhone').value=i.guest_phone;
+    $('cin').value=i.checkin_date;$('cout').value=i.checkout_date;
+    $('rooms').value=i.num_rooms;$('people').value=i.num_people;
+    $('roomCat').value=i.room_category;$('roomRate').value=i.room_rate;
+    $('mealOpt').checked=!!i.meal_plan_opted;$('mealType').disabled=!i.meal_plan_opted;$('mealCharge').disabled=!i.meal_plan_opted;
+    if(i.meal_plan_type)$('mealType').value=i.meal_plan_type;$('mealCharge').value=i.meal_charge;
+    $('exPersons').value=i.extra_persons;$('exRate').value=i.extra_person_rate;
+    $('discType').value=i.discount_type;$('discVal').value=i.discount_value;
+    lastComputedTotal=-1;$('grandTotal').value=i.total_amount;
+    $('advance').value=i.advance_amount;$('payMode').value=i.payment_mode||'Cash';
+    hide('pastOverlay');render();toast("Loaded "+i.invoice_number);
+  }catch(e){toast("Could not load: "+e.message,true)}
+}
+
+/* ---------- reset ---------- */
+function resetForm(){
+  ['gName','gPhone','cin','cout'].forEach(id=>$(id).value='');
+  $('rooms').value=1;$('people').value=2;$('roomRate').value=0;
+  $('mealOpt').checked=false;$('mealType').disabled=true;$('mealCharge').disabled=true;$('mealCharge').value=0;
+  $('exPersons').value=0;$('exRate').value=0;$('discVal').value=0;$('advance').value=0;
+  lastComputedTotal=0;$('grandTotal').value=0;
+  $('invDate').value=new Date().toISOString().slice(0,10);
+  newInvoiceNo();render();toast("New invoice");
+}
+
+/* ---------- size chooser ---------- */
+let sizeCallback=null;
+function chooseSize(cb){sizeCallback=cb;show('sizeOverlay')}
+function pickSize(sz){hide('sizeOverlay');if(sizeCallback)sizeCallback(sz)}
+function show(id){$(id).classList.add('show')}
+function hide(id){$(id).classList.remove('show')}
+
+/* ---------- capture invoice to canvas ---------- */
+async function captureCanvas(scale=2.5){
+  await document.fonts.ready;
+  return await html2canvas($('invoice'),{scale,backgroundColor:'#ffffff',useCORS:true,logging:false});
+}
+
+/* ---------- PDF ---------- */
+async function doPDF(size){
+  try{
+    toast("Building PDF…");
+    const canvas=await captureCanvas(2.5);
+    const {jsPDF}=window.jspdf;
+    const pdf=new jsPDF({orientation:'portrait',unit:'mm',format:size});
+    const pw=pdf.internal.pageSize.getWidth(), ph=pdf.internal.pageSize.getHeight();
+    const m=8, availW=pw-2*m, availH=ph-2*m;
+    let w=availW, h=canvas.height*w/canvas.width;
+    if(h>availH){h=availH;w=canvas.width*h/canvas.height;}
+    const x=(pw-w)/2;
+    pdf.addImage(canvas.toDataURL('image/jpeg',0.95),'JPEG',x,m,w,h);
+    pdf.save(($('invNo').value||'invoice')+'.pdf');
+    toast("PDF downloaded ✓");
+  }catch(e){toast("PDF failed: "+e.message,true)}
+}
+
+/* ---------- JPG (A5) ---------- */
+async function doJPG(){
+  try{
+    toast("Building JPG…");
+    const src=await captureCanvas(3);
+    // place onto a true A5 portrait canvas (150 dpi ≈ 874 × 1240)
+    const A5W=874,A5H=1240,pad=24;
+    const out=document.createElement('canvas');out.width=A5W;out.height=A5H;
+    const ctx=out.getContext('2d');ctx.fillStyle='#fff';ctx.fillRect(0,0,A5W,A5H);
+    const availW=A5W-2*pad, availH=A5H-2*pad;
+    let w=availW,h=src.height*w/src.width;
+    if(h>availH){h=availH;w=src.width*h/src.height;}
+    ctx.drawImage(src,(A5W-w)/2,pad,w,h);
+    const a=document.createElement('a');a.href=out.toDataURL('image/jpeg',0.95);
+    a.download=($('invNo').value||'invoice')+'_A5.jpg';a.click();
+    toast("JPG (A5) downloaded ✓");
+  }catch(e){toast("JPG failed: "+e.message,true)}
+}
+
+/* ---------- Print ---------- */
+function doPrint(size){
+  let s=document.getElementById('printSize');
+  if(!s){s=document.createElement('style');s.id='printSize';document.head.appendChild(s);}
+  s.textContent='@media print{@page{size:'+size+';margin:8mm}}';
+  setTimeout(()=>window.print(),120);
+}
+
+/* ---------- WhatsApp ---------- */
+function sendWhatsApp(){
+  let phone=($('gPhone').value||'').replace(/\D/g,'');
+  if(phone.length===10)phone='91'+phone;
+  else if(phone.length===11&&phone.startsWith('0'))phone='91'+phone.slice(1);
+  const grand=+$('grandTotal').value||0, adv=+$('advance').value||0;
+  const msg=
+`*${CONFIG.business_name||''} — ${CONFIG.tagline||''}*
+
+Dear ${$('gName').value||'Guest'}, here is your invoice summary:
+
+*Invoice No:* ${$('invNo').value}
+*Date:* ${fmtDate($('invDate').value)}
+*Check-in:* ${fmtDate($('cin').value)}
+*Check-out:* ${fmtDate($('cout').value)}
+*Nights:* ${calcNights()}
+*Room:* ${$('roomCat').value} × ${$('rooms').value}
+
+*Grand Total:* ${rupee(grand)}
+*Advance:* ${rupee(adv)}
+*Balance Due:* ${rupee(grand-adv)}
+
+${CONFIG.upi_id?('Pay via UPI: '+CONFIG.upi_id+'\n\n'):''}Please find the detailed invoice attached.
+Thank you for choosing us! 🙏`;
+  const url=(phone?('https://wa.me/'+phone):'https://wa.me/')+'?text='+encodeURIComponent(msg);
+  window.open(url,'_blank');
+  toast("WhatsApp opened — attach the downloaded PDF/JPG");
+}
+
+/* ---------- live updates on every input ---------- */
+document.querySelectorAll('input,select').forEach(el=>{
+  if(['gName','gPhone'].includes(el.id))return; // handled separately
+  el.addEventListener('input',render);el.addEventListener('change',render);
+});
+
+/* ---------- init ---------- */
+$('invDate').value=new Date().toISOString().slice(0,10);
+$('invNo').value=genInvoiceNo();
+loadConfig();
+</script>
+</body>
+</html>
