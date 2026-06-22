@@ -9,6 +9,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600;700&family=Jost:wght@300;400;500;600&family=Cormorant+Garamond:wght@500;600&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
 <style>
 :root{
   --navy:#0A2540; --navy-2:#102A43;
@@ -149,6 +150,7 @@ select option{background:var(--modal-bg);color:var(--modal-text)}
 .suggest div{padding:9px 12px;cursor:pointer;font-size:13px;color:var(--modal-text);border-bottom:1px solid var(--app-border)}
 .suggest div:hover{background:rgba(201,162,75,.15)}
 .suggest small{color:var(--app-muted)}
+.form-panel input:disabled,.form-panel select:disabled{opacity:.65;cursor:not-allowed;background:var(--app-surface-2)}
 
 /* ---------- Preview panel ---------- */
 .preview-panel{padding:26px;display:flex;flex-direction:column;align-items:center;gap:18px}
@@ -210,10 +212,17 @@ table.items tbody tr:nth-child(even){background:#fafbfc}
 .words .lbl{color:var(--muted);text-transform:uppercase;font-size:10px;letter-spacing:1px;display:block;margin-bottom:2px}
 
 .pay-row{display:grid;grid-template-columns:1.3fr 1fr;gap:18px;margin-top:20px;align-items:start}
+.pay-left{display:flex;flex-direction:column;gap:12px}
 .bankbox{border:1px dashed var(--gold);border-radius:9px;padding:12px 14px;background:#fffdf7}
 .bankbox .h{font-size:10.5px;letter-spacing:1.4px;text-transform:uppercase;color:var(--gold);font-weight:600;margin-bottom:6px}
 .bankbox .v{font-size:12px;line-height:1.7;color:var(--ink)}
 .bankbox .v .lbl{color:var(--muted)}
+.upi-box{border:1px solid var(--gold);border-radius:9px;padding:12px 14px;background:#fffdf7;text-align:center}
+.upi-box .h{font-size:10.5px;letter-spacing:1.4px;text-transform:uppercase;color:var(--gold);font-weight:600;margin-bottom:8px}
+.upi-box img{width:128px;height:128px;display:block;margin:0 auto 6px;image-rendering:pixelated}
+.upi-box .upi-meta{font-size:11.5px;color:var(--ink);line-height:1.5}
+.upi-box .upi-meta b{display:block;color:var(--navy);font-size:13px}
+.upi-box .upi-meta span{color:var(--muted)}
 .paysummary table{width:100%;font-size:13px}
 .paysummary td{padding:5px 0}
 .paysummary td.r{text-align:right;font-variant-numeric:tabular-nums}
@@ -442,9 +451,16 @@ table.items tbody tr:nth-child(even){background:#fafbfc}
         <div class="words"><span class="lbl">Amount in words</span><span id="ivWords">—</span></div>
 
         <div class="pay-row" id="ivPayRow">
-          <div class="bankbox" id="ivBankBox">
-            <div class="h">Payment Details</div>
-            <div class="v" id="ivBank">—</div>
+          <div class="pay-left" id="ivPayLeft">
+            <div class="bankbox" id="ivBankBox">
+              <div class="h">Bank Transfer</div>
+              <div class="v" id="ivBank">—</div>
+            </div>
+            <div class="upi-box" id="ivUpiBox" style="display:none">
+              <div class="h">Scan to Pay · UPI</div>
+              <img id="ivUpiQr" alt="UPI QR code">
+              <div class="upi-meta"><b id="ivUpiAmt"></b><span id="ivUpiId"></span></div>
+            </div>
           </div>
           <div class="paysummary">
             <table>
@@ -789,7 +805,7 @@ function setActiveHotel(h){ // hotel_admin path: hotel object came from login/me
 }
 function setActiveHotelFromConfig(){
   $('roomCat').innerHTML=ROOM_CATEGORIES.map(r=>`<option>${r}</option>`).join("");
-  applyLogo(); applyGate(); render(); refreshInvoiceNumber();
+  applyLogo(); applyGate(); setFormLocked(false); render(); refreshInvoiceNumber();
 }
 
 /* ---------- gating (approval + enabled) ---------- */
@@ -816,6 +832,38 @@ function updateActionButtons(){
   const ok = invoiceSaved && canGenerate();
   document.querySelectorAll('.toolbar .act').forEach(btn=>{ btn.disabled=!ok; btn.style.opacity=ok?'':'.45'; btn.style.pointerEvents=ok?'':'none'; });
   const hint=$('saveHint'); if(hint) hint.style.display=invoiceSaved?'none':'';
+}
+
+/* ---------- UPI scan-to-pay QR ---------- */
+let _lastUpiStr="";
+function applyUpiQr(balance){
+  const box=$('ivUpiBox');
+  const upi=(CONFIG.upi_id||"").trim();
+  const amt=round2(balance);
+  if(!upi || amt<=0 || typeof qrcode==="undefined"){ box.style.display='none'; _lastUpiStr=""; return; }
+  const pn=encodeURIComponent((CONFIG.business_name||"Hotel").slice(0,40));
+  const tn=encodeURIComponent("Invoice "+($('invNo').value||""));
+  const upiStr=`upi://pay?pa=${encodeURIComponent(upi)}&pn=${pn}&am=${amt}&cu=INR&tn=${tn}`;
+  if(upiStr!==_lastUpiStr){
+    try{
+      const qr=qrcode(0,'M'); qr.addData(upiStr); qr.make();
+      $('ivUpiQr').src=qr.createDataURL(5,8);
+      _lastUpiStr=upiStr;
+    }catch(e){ box.style.display='none'; return; }
+  }
+  $('ivUpiAmt').textContent="Pay "+rupee(amt);
+  $('ivUpiId').textContent=upi;
+  box.style.display='';
+}
+
+/* ---------- read-only lock for viewing a saved invoice ---------- */
+function setFormLocked(locked){
+  document.querySelectorAll('.form-panel input, .form-panel select, .form-panel textarea').forEach(el=>{ el.disabled=locked; });
+  $('saveBtn').style.display=locked?'none':'';
+  const h=$('saveHint');
+  if(h){ h.style.display=''; h.textContent=locked
+    ? 'Saved invoice — read-only. Tap ＋ New to start another.'
+    : 'Save to lock this number, then print / download / WhatsApp become available.'; }
 }
 
 /* ---------- amount in words (Indian system) ---------- */
@@ -923,15 +971,18 @@ function render(){
   $('ivBal').textContent=rupee(bal);
   $('ivMode').textContent=$('payMode').value;
   let bank="";
-  if(CONFIG.bank_name||CONFIG.bank_account_no||CONFIG.upi_id){
-    if(CONFIG.bank_name)bank+='<span class="lbl">Bank:</span> '+CONFIG.bank_name+'<br>';
-    if(CONFIG.bank_account_name)bank+='<span class="lbl">A/C Name:</span> '+CONFIG.bank_account_name+'<br>';
-    if(CONFIG.bank_account_no)bank+='<span class="lbl">A/C No:</span> '+CONFIG.bank_account_no+'<br>';
-    if(CONFIG.bank_ifsc)bank+='<span class="lbl">IFSC:</span> '+CONFIG.bank_ifsc+'<br>';
-    if(CONFIG.upi_id)bank+='<span class="lbl">UPI:</span> '+CONFIG.upi_id;
-  }
-  if(bank){ $('ivBank').innerHTML=bank; $('ivBankBox').style.display=''; $('ivPayRow').style.gridTemplateColumns=''; }
-  else { $('ivBankBox').style.display='none'; $('ivPayRow').style.gridTemplateColumns='1fr'; }
+  if(CONFIG.bank_name)bank+='<span class="lbl">Bank:</span> '+CONFIG.bank_name+'<br>';
+  if(CONFIG.bank_account_name)bank+='<span class="lbl">A/C Name:</span> '+CONFIG.bank_account_name+'<br>';
+  if(CONFIG.bank_account_no)bank+='<span class="lbl">A/C No:</span> '+CONFIG.bank_account_no+'<br>';
+  if(CONFIG.bank_ifsc)bank+='<span class="lbl">IFSC:</span> '+CONFIG.bank_ifsc;
+  if(bank){ $('ivBank').innerHTML=bank; $('ivBankBox').style.display=''; }
+  else { $('ivBankBox').style.display='none'; }
+  // UPI scan-to-pay QR (only when a UPI id exists and there is a balance to collect)
+  applyUpiQr(g.final-adv);
+  // collapse the left column entirely if neither bank nor UPI is shown
+  const hasLeft = bank || ($('ivUpiBox').style.display!=='none');
+  $('ivPayLeft').style.display = hasLeft ? '' : 'none';
+  $('ivPayRow').style.gridTemplateColumns = hasLeft ? '' : '1fr';
 
   // signature
   const sg=$('ivSign');
@@ -1040,7 +1091,7 @@ async function saveInvoice(){
   try{
     const d=await api('saveInvoice',{invoice:inv, ...hotelParam()});
     if(d&&d.invoice&&d.invoice.invoice_number){$('invNo').value=d.invoice.invoice_number;render();}
-    setSaved(true);
+    setSaved(true); setFormLocked(true);
     showSaved();
   }catch(e){
     toast("Save failed: "+niceErr(e.message),true);
@@ -1084,7 +1135,7 @@ async function reloadInvoice(id){
     $('gstAdd').checked=!!i.gst_exclusive;
     lastComputedTotal=-1;$('grandTotal').value=(i.net_amount!=null?i.net_amount:i.total_amount);
     $('advance').value=i.advance_amount;$('payMode').value=i.payment_mode||'Cash';
-    hide('pastOverlay');render();setSaved(true);toast("Loaded "+i.invoice_number);
+    hide('pastOverlay');render();setSaved(true);setFormLocked(true);toast("Loaded "+i.invoice_number+" (read-only)");
   }catch(e){toast("Could not load: "+niceErr(e.message),true)}
 }
 
@@ -1097,6 +1148,7 @@ function resetForm(){
   lastComputedTotal=0;$('grandTotal').value=0;
   $('gstAdd').checked=false;
   $('invDate').value=todayIST();
+  setFormLocked(false);
   setSaved(false);
   refreshInvoiceNumber();
   toast("New invoice");
