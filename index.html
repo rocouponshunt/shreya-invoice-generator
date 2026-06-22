@@ -78,6 +78,12 @@ input,select,textarea{
 }
 input:focus,select:focus,textarea:focus{border-color:var(--gold);box-shadow:0 0 0 3px rgba(201,162,75,.15)}
 input::placeholder{color:#5b6f84}
+/* visible calendar icon on dark date fields */
+input[type="date"]{position:relative;cursor:pointer}
+input[type="date"]::-webkit-calendar-picker-indicator{
+  filter:invert(78%) sepia(38%) saturate(560%) hue-rotate(2deg) brightness(92%);
+  cursor:pointer;opacity:1;font-size:16px}
+input[type="date"]::-webkit-calendar-picker-indicator:hover{filter:invert(85%) sepia(60%) saturate(700%) hue-rotate(2deg)}
 select option{background:#0c1826}
 .row-inline{display:flex;align-items:center;gap:8px}
 .switch{display:inline-flex;align-items:center;gap:9px;cursor:pointer;user-select:none}
@@ -228,13 +234,10 @@ table.items tbody tr:nth-child(even){background:#fafbfc}
       <h3>Invoice</h3>
       <div class="grid">
         <div class="field">
-          <label>Invoice No.</label>
-          <div class="row-inline">
-            <input id="invNo" readonly>
-            <button class="btn ghost" style="padding:9px 10px" title="Regenerate" onclick="newInvoiceNo()">⟳</button>
-          </div>
+          <label>Invoice No. <span class="hint">(auto · sequential)</span></label>
+          <input id="invNo" readonly>
         </div>
-        <div class="field"><label>Invoice Date</label><input type="date" id="invDate"></div>
+        <div class="field"><label>Invoice Date <span class="hint">(today — tap to change)</span></label><input type="date" id="invDate"></div>
       </div>
     </div>
 
@@ -306,10 +309,10 @@ table.items tbody tr:nth-child(even){background:#fafbfc}
     <div class="toolbar">
       <button class="btn ghost" onclick="loadPastInvoices()">📁 Past Invoices</button>
       <button class="btn ghost" onclick="resetForm()">＋ New</button>
-      <button class="btn" onclick="saveInvoice()">💾 Save</button>
+      <button class="btn gold" onclick="saveInvoice()">💾 Save Invoice</button>
       <button class="btn" onclick="chooseSize(doPrint)">🖨 Print</button>
       <button class="btn" onclick="chooseSize(doPDF)">⬇ PDF</button>
-      <button class="btn gold" onclick="doJPG()">⬇ JPG (A5)</button>
+      <button class="btn" onclick="doJPG()">⬇ JPG (A5)</button>
       <button class="btn wa" onclick="sendWhatsApp()">WhatsApp</button>
     </div>
 
@@ -429,6 +432,23 @@ table.items tbody tr:nth-child(even){background:#fafbfc}
   </div>
 </div>
 
+<!-- saved confirmation -->
+<div class="overlay" id="savedOverlay">
+  <div class="modal">
+    <h2>Invoice saved ✓</h2>
+    <p id="savedMsg">Ready. Print it, save a copy, or start the next one.</p>
+    <div class="size-opts" style="grid-template-columns:1fr 1fr 1fr">
+      <div class="size-opt" onclick="hide('savedOverlay');chooseSize(doPrint)"><b>🖨</b><small>Print</small></div>
+      <div class="size-opt" onclick="hide('savedOverlay');chooseSize(doPDF)"><b>PDF</b><small>A5 / A4</small></div>
+      <div class="size-opt" onclick="hide('savedOverlay');doJPG()"><b>JPG</b><small>A5</small></div>
+    </div>
+    <div class="close" style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap">
+      <button class="x" onclick="hide('savedOverlay')">Stay on this invoice</button>
+      <button class="btn gold" onclick="hide('savedOverlay');resetForm()">＋ Next Invoice</button>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script>
@@ -472,13 +492,34 @@ async function api(action, params={}){
 let toastT;
 function toast(msg,err){const t=$('toast');t.textContent=msg;t.className='toast show'+(err?' err':'');clearTimeout(toastT);toastT=setTimeout(()=>t.className='toast',3200)}
 
-/* ---------- invoice number ---------- */
-function genInvoiceNo(){
-  const chars="ABCDEFGHJKLMNPQRSTUVWXYZ23456789";let s="";
-  for(let i=0;i<6;i++)s+=chars[Math.floor(Math.random()*chars.length)];
-  return "VP-"+s;
+/* ---------- sequential invoice number (persists on this device) ---------- */
+const LS_COUNTER='vp_invoice_counter';
+const LS_INVOICES='vp_invoices_local';
+let memCounter=1; // fallback when localStorage is unavailable
+function lsGet(k,def){try{const v=localStorage.getItem(k);return v===null?def:v}catch(e){return def}}
+function lsSet(k,v){try{localStorage.setItem(k,v);return true}catch(e){return false}}
+function getCounter(){const v=parseInt(lsGet(LS_COUNTER,String(memCounter)),10);return isNaN(v)||v<1?1:v}
+function setCounter(n){memCounter=n;lsSet(LS_COUNTER,String(n))}
+function padNo(n){return 'VP-'+String(n).padStart(5,'0')}            // VP-00001, VP-00002 …
+function currentInvoiceNumber(){return padNo(getCounter())}
+function commitNumber(){ // bump only when the on-screen number is the active pending one
+  const cur=getCounter();
+  if($('invNo').value===padNo(cur)) setCounter(cur+1);
 }
-function newInvoiceNo(){$('invNo').value=genInvoiceNo();render()}
+
+/* ---------- local (offline) invoice store ---------- */
+function localSaveInvoice(inv){
+  let arr=[];try{arr=JSON.parse(lsGet(LS_INVOICES,'[]'))||[]}catch(e){arr=[]}
+  arr=arr.filter(x=>x.invoice_number!==inv.invoice_number);
+  inv.id=inv.invoice_number; inv.created_at=new Date().toISOString();
+  arr.unshift(inv); lsSet(LS_INVOICES,JSON.stringify(arr));
+}
+function localListInvoices(q){
+  let arr=[];try{arr=JSON.parse(lsGet(LS_INVOICES,'[]'))||[]}catch(e){arr=[]}
+  if(q){q=q.toLowerCase();arr=arr.filter(x=>(x.invoice_number||'').toLowerCase().includes(q)||(x.guest_name||'').toLowerCase().includes(q)||(x.guest_phone||'').includes(q))}
+  return arr.slice(0,60);
+}
+function localGetInvoice(id){let arr=[];try{arr=JSON.parse(lsGet(LS_INVOICES,'[]'))||[]}catch(e){arr=[]}return arr.find(x=>x.id===id||x.invoice_number===id)}
 
 /* ---------- amount in words (Indian system) ---------- */
 function inWords(num){
@@ -612,7 +653,7 @@ async function loadConfig(){
     pill.textContent="● Connected to admin";pill.className="pill";
   }catch(e){
     API_OK=false;
-    pill.textContent="● Offline — using defaults";pill.className="pill warn";
+    pill.textContent="● Local mode — saves on this device";pill.className="pill warn";
   }
   // fill room category dropdown
   $('roomCat').innerHTML=ROOM_CATEGORIES.map(r=>`<option>${r}</option>`).join("");
@@ -666,19 +707,34 @@ function collectInvoice(){
 /* ---------- save ---------- */
 async function saveInvoice(){
   if(!$('gName').value){toast("Enter guest name first",true);return}
-  if(!API_OK){toast("Not connected — invoice not saved. You can still print/download.",true);return}
+  const inv=collectInvoice();
   try{
-    toast("Saving…");
-    await api('saveInvoice',{invoice:collectInvoice()});
-    toast("Invoice saved ✓");
-  }catch(e){toast("Save failed: "+e.message,true)}
+    if(API_OK){toast("Saving…");await api('saveInvoice',{invoice:inv});}
+    else{localSaveInvoice(inv);}
+    commitNumber();
+    showSaved();
+  }catch(e){
+    localSaveInvoice(inv);commitNumber();showSaved();   // never lose the invoice
+    toast("Saved on device (server: "+e.message+")",true);
+  }
+}
+function showSaved(){
+  $('savedMsg').innerHTML='Invoice <b>'+$('invNo').value+'</b> saved. Print it, save a copy, or start the next one.';
+  show('savedOverlay');
 }
 
 /* ---------- past invoices ---------- */
 async function loadPastInvoices(){
   show('pastOverlay');
   const list=$('pastList');
-  if(!API_OK){list.innerHTML="<p style='color:#ffd2a8'>Not connected to admin database.</p>";return}
+  if(!API_OK){
+    const arr=localListInvoices($('pastSearch').value||"");
+    if(!arr.length){list.innerHTML="<p>No saved invoices yet on this device.</p>";return}
+    list.innerHTML=arr.map(i=>`<div class="item" onclick="reloadInvoice('${i.id}')">
+      <div><b>${i.invoice_number}</b><small>${i.guest_name||''} · ${i.guest_phone||''} · ${fmtDate(i.invoice_date)}</small></div>
+      <div class="amt">${rupee(i.total_amount)}</div></div>`).join("");
+    return;
+  }
   list.innerHTML="<p>Loading…</p>";
   try{
     const d=await api('listInvoices',{query:$('pastSearch').value||"",limit:40});
@@ -690,7 +746,9 @@ async function loadPastInvoices(){
 }
 async function reloadInvoice(id){
   try{
-    const d=await api('getInvoice',{id});const i=d.invoice;
+    let i;
+    if(API_OK){const d=await api('getInvoice',{id});i=d.invoice;}
+    else{i=localGetInvoice(id);if(!i)throw new Error("not found");}
     $('invNo').value=i.invoice_number;$('invDate').value=i.invoice_date;
     $('gName').value=i.guest_name;$('gPhone').value=i.guest_phone;
     $('cin').value=i.checkin_date;$('cout').value=i.checkout_date;
@@ -714,7 +772,8 @@ function resetForm(){
   $('exPersons').value=0;$('exRate').value=0;$('discVal').value=0;$('advance').value=0;
   lastComputedTotal=0;$('grandTotal').value=0;
   $('invDate').value=new Date().toISOString().slice(0,10);
-  newInvoiceNo();render();toast("New invoice");
+  $('invNo').value=currentInvoiceNumber();
+  render();toast("New invoice "+$('invNo').value);
 }
 
 /* ---------- size chooser ---------- */
@@ -812,7 +871,7 @@ document.querySelectorAll('input,select').forEach(el=>{
 
 /* ---------- init ---------- */
 $('invDate').value=new Date().toISOString().slice(0,10);
-$('invNo').value=genInvoiceNo();
+$('invNo').value=currentInvoiceNumber();
 loadConfig();
 </script>
 </body>
