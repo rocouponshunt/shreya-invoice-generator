@@ -151,6 +151,13 @@ select option{background:var(--modal-bg);color:var(--modal-text)}
 .suggest div:hover{background:rgba(201,162,75,.15)}
 .suggest small{color:var(--app-muted)}
 .form-panel input:disabled,.form-panel select:disabled{opacity:.65;cursor:not-allowed;background:var(--app-surface-2)}
+.req::after{content:" *";color:#e0594f;font-weight:700}
+.form-panel input.invalid,.form-panel select.invalid{border-color:#e0594f !important;box-shadow:0 0 0 3px rgba(224,89,79,.15) !important}
+.save-error{background:rgba(224,89,79,.12);border:1px solid rgba(224,89,79,.4);color:#a3271d;border-radius:9px;padding:10px 13px;font-size:12.5px;margin-top:10px;display:none}
+body.dark .save-error{color:#ffb4ad}
+.save-error.show{display:block}
+.save-error b{display:block;margin-bottom:5px}
+.save-error ul{margin:0;padding-left:18px;line-height:1.6}
 
 /* ---------- Preview panel ---------- */
 .preview-panel{padding:26px;display:flex;flex-direction:column;align-items:center;gap:18px}
@@ -368,19 +375,19 @@ table.items tbody tr:nth-child(even){background:#fafbfc}
       <h3>Guest</h3>
       <div class="grid">
         <div class="field full">
-          <label>Guest Name <span class="hint">(type to find returning guest)</span></label>
+          <label class="req">Guest Name <span class="hint">(type to find returning guest)</span></label>
           <input id="gName" placeholder="e.g. Rohit Sharma" autocomplete="off">
           <div class="suggest" id="gSuggest" style="display:none"></div>
         </div>
-        <div class="field full"><label>Mobile Number</label><input id="gPhone" placeholder="10-digit mobile" inputmode="numeric" maxlength="10"></div>
+        <div class="field full"><label class="req">Mobile Number</label><input id="gPhone" placeholder="10-digit mobile" inputmode="numeric" maxlength="10"></div>
       </div>
     </div>
 
     <div class="card">
       <h3>Stay</h3>
       <div class="grid">
-        <div class="field"><label>Check-in</label><input type="date" id="cin"></div>
-        <div class="field"><label>Check-out</label><input type="date" id="cout"></div>
+        <div class="field"><label class="req">Check-in</label><input type="date" id="cin"></div>
+        <div class="field"><label class="req">Check-out</label><input type="date" id="cout"></div>
         <div class="field"><label>Nights</label><input id="nights" readonly></div>
         <div class="field"><label>No. of Rooms</label><input type="number" id="rooms" min="1" value="1"></div>
         <div class="field"><label>No. of People</label><input type="number" id="people" min="1" value="2"></div>
@@ -391,7 +398,7 @@ table.items tbody tr:nth-child(even){background:#fafbfc}
     <div class="card">
       <h3>Charges</h3>
       <div class="grid">
-        <div class="field full"><label>Room Tariff (per room / night)</label><input type="number" id="roomRate" min="0" value="0" placeholder="₹"></div>
+        <div class="field full"><label class="req">Room Tariff (per room / night)</label><input type="number" id="roomRate" min="0" value="0" placeholder="₹"></div>
         <div class="field full" style="margin-top:2px">
           <label class="switch"><input type="checkbox" id="mealOpt"><span class="track"></span><span>Meal Plan included</span></label>
         </div>
@@ -431,6 +438,7 @@ table.items tbody tr:nth-child(even){background:#fafbfc}
 
     <button class="btn gold" id="saveBtn" onclick="saveInvoice()" style="width:100%;justify-content:center;padding:14px;font-size:15px">💾 Save Invoice</button>
     <div class="hint" id="saveHint" style="text-align:center;margin-top:8px">Save to lock this number, then print / download / WhatsApp become available.</div>
+    <div class="save-error" id="saveError"></div>
 
   </div>
 
@@ -1094,11 +1102,11 @@ $('gName').addEventListener('input',e=>{
   const el=e.target, pos=el.selectionStart;
   el.value=el.value.replace(/(^|\s)([a-z])/g,(m,p,c)=>p+c.toUpperCase()); // capitalise each word
   try{el.setSelectionRange(pos,pos)}catch(_){}
-  setSaved(false);render();debouncedSearch(el.value);
+  clearInvalid();setSaved(false);render();debouncedSearch(el.value);
 });
 $('gPhone').addEventListener('input',e=>{
   e.target.value=e.target.value.replace(/\D/g,'').slice(0,10); // digits only, max 10
-  setSaved(false);render();debouncedSearch(e.target.value);
+  clearInvalid();setSaved(false);render();debouncedSearch(e.target.value);
 });
 function debouncedSearch(q){
   clearTimeout(gtimer);
@@ -1147,12 +1155,39 @@ function collectInvoice(){
   };
 }
 
+/* ---------- required-field validation ---------- */
+const REQUIRED=[
+  {id:'gName',  label:'Guest name',                 test:v=>!!v.trim()},
+  {id:'gPhone', label:'Mobile number (10 digits)',  test:v=>/^\d{10}$/.test(v)},
+  {id:'cin',    label:'Check-in date',               test:v=>!!v},
+  {id:'cout',   label:'Check-out date',              test:v=>!!v},
+  {id:'roomRate',label:'Room tariff (per night)',    test:v=>(+v)>0},
+];
+function clearInvalid(){
+  document.querySelectorAll('.form-panel .invalid').forEach(e=>e.classList.remove('invalid'));
+  const se=$('saveError'); if(se) se.classList.remove('show');
+}
+function validateInvoice(){
+  const miss=[];
+  REQUIRED.forEach(r=>{ const el=$(r.id); const ok=r.test(el.value); el.classList.toggle('invalid',!ok); if(!ok) miss.push(r.label); });
+  if($('cin').value && $('cout').value && calcNights()<=0){ miss.push('Check-out must be after check-in'); $('cout').classList.add('invalid'); }
+  if(gstCalc().final<=0){ miss.push('Total amount must be more than ₹0'); $('grandTotal').classList.add('invalid'); }
+  return miss;
+}
+function showValidation(miss){
+  const se=$('saveError');
+  se.innerHTML='<b>Please complete these before saving:</b><ul>'+miss.map(m=>'<li>'+m+'</li>').join('')+'</ul>';
+  se.classList.add('show');
+  const first=document.querySelector('.form-panel .invalid'); if(first) first.scrollIntoView({behavior:'smooth',block:'center'});
+}
+
 /* ---------- save ---------- */
 async function saveInvoice(){
   if(!canGenerate()){ toast("Invoices are locked for this hotel right now.",true); return; }
-  if(!$('gName').value){toast("Enter guest name first",true);return}
+  const miss=validateInvoice();
+  if(miss.length){ showValidation(miss); toast("Missing required details",true); return; }
   const inv=collectInvoice();
-  const btnText="Saving…"; toast(btnText);
+  toast("Saving…");
   try{
     const d=await api('saveInvoice',{invoice:inv, ...hotelParam()});
     if(d&&d.invoice&&d.invoice.invoice_number){$('invNo').value=d.invoice.invoice_number;render();}
@@ -1217,6 +1252,7 @@ function resetForm(){
   $('gstAdd').checked=false;
   $('invDate').value=todayIST();
   setFormLocked(false);
+  clearInvalid();
   setSaved(false);
   if(isMobile()) setMTab('details');
   refreshInvoiceNumber();
@@ -1313,7 +1349,7 @@ Thank you for choosing us! 🙏`;
 }
 
 /* ---------- live updates on every input ---------- */
-function onFieldEdit(){ setSaved(false); render(); }
+function onFieldEdit(){ clearInvalid(); setSaved(false); render(); }
 document.querySelectorAll('input,select').forEach(el=>{
   if(['gName','gPhone'].includes(el.id))return; // handled separately
   el.addEventListener('input',onFieldEdit);el.addEventListener('change',onFieldEdit);
