@@ -158,6 +158,14 @@ body.dark .save-error{color:#ffb4ad}
 .save-error.show{display:block}
 .save-error b{display:block;margin-bottom:5px}
 .save-error ul{margin:0;padding-left:18px;line-height:1.6}
+.room-head{display:grid;grid-template-columns:1fr 50px 90px 26px;gap:6px;font-size:9.5px;text-transform:uppercase;letter-spacing:.4px;color:var(--app-muted);margin-bottom:5px;padding:0 2px}
+.room-row{display:grid;grid-template-columns:1fr 50px 90px 26px;gap:6px;margin-bottom:6px;align-items:center}
+.room-row select,.room-row input{padding:8px 8px;font-size:13px}
+.rt-del{background:transparent;border:1px solid var(--app-border);color:#e0594f;border-radius:7px;cursor:pointer;padding:7px 0;font-size:12px;line-height:1}
+.rt-del:hover{background:rgba(224,89,79,.1)}
+.rt-del:disabled{opacity:.3;cursor:default}
+.addrow{background:transparent;border:1px dashed var(--gold);color:var(--gold);border-radius:9px;padding:9px;width:100%;cursor:pointer;font-family:'Jost',sans-serif;font-size:13px;margin-top:2px}
+.addrow:hover{background:rgba(201,162,75,.08)}
 
 /* ---------- Preview panel ---------- */
 .preview-panel{padding:26px;display:flex;flex-direction:column;align-items:center;gap:18px}
@@ -273,6 +281,8 @@ table.items tbody tr:nth-child(even){background:#fafbfc}
 
 /* ---------- Mobile tabs bar (hidden on desktop) ---------- */
 .mtabs{display:none}
+/* force the full desktop document during export so output is consistent & full-width */
+#invoice.exporting{width:720px !important;max-width:none !important}
 
 /* ---------- Mobile app-like layout ---------- */
 @media(max-width:980px){
@@ -389,16 +399,21 @@ table.items tbody tr:nth-child(even){background:#fafbfc}
         <div class="field"><label class="req">Check-in</label><input type="date" id="cin"></div>
         <div class="field"><label class="req">Check-out</label><input type="date" id="cout"></div>
         <div class="field"><label>Nights</label><input id="nights" readonly></div>
-        <div class="field"><label>No. of Rooms</label><input type="number" id="rooms" min="1" value="1"></div>
-        <div class="field"><label>No. of People</label><input type="number" id="people" min="1" value="2"></div>
-        <div class="field"><label>Room Category</label><select id="roomCat"></select></div>
+        <div class="field"><label>No. of Guests</label><input type="number" id="people" min="1" value="2"></div>
       </div>
+    </div>
+
+    <div class="card">
+      <h3>Rooms</h3>
+      <div class="room-head"><span>Room Type</span><span>Qty</span><span>₹ / night</span><span></span></div>
+      <div id="roomRows"></div>
+      <button class="addrow" id="addRoomBtn" onclick="addRoomRow()">＋ Add another room type</button>
+      <div class="hint" id="roomsSummary" style="margin-top:8px"></div>
     </div>
 
     <div class="card">
       <h3>Charges</h3>
       <div class="grid">
-        <div class="field full"><label class="req">Room Tariff (per room / night)</label><input type="number" id="roomRate" min="0" value="0" placeholder="₹"></div>
         <div class="field full" style="margin-top:2px">
           <label class="switch"><input type="checkbox" id="mealOpt"><span class="track"></span><span>Meal Plan included</span></label>
         </div>
@@ -436,6 +451,16 @@ table.items tbody tr:nth-child(even){background:#fafbfc}
       </div>
     </div>
 
+    <div class="card">
+      <h3>Booking Source</h3>
+      <label class="switch"><input type="checkbox" id="agentOpt"><span class="track"></span><span>Booking via Travel Agent</span></label>
+      <div class="hint" style="margin-top:6px">Off = direct booking (bill &amp; WhatsApp go to the guest). On = bill is payable by the agent, and WhatsApp goes to the agent.</div>
+      <div class="grid" id="agentFields" style="display:none;margin-top:10px">
+        <div class="field full"><label class="req-agent">Travel Agent Name</label><input id="agentName" placeholder="Agent / agency name"></div>
+        <div class="field full"><label class="req-agent">Travel Agent Mobile</label><input id="agentPhone" placeholder="10-digit mobile" inputmode="numeric" maxlength="10"></div>
+      </div>
+    </div>
+
     <button class="btn gold" id="saveBtn" onclick="saveInvoice()" style="width:100%;justify-content:center;padding:14px;font-size:15px">💾 Save Invoice</button>
     <div class="hint" id="saveHint" style="text-align:center;margin-top:8px">Save to lock this number, then print / download / WhatsApp become available.</div>
     <div class="save-error" id="saveError"></div>
@@ -449,7 +474,7 @@ table.items tbody tr:nth-child(even){background:#fafbfc}
       <button class="btn ghost" onclick="resetForm()">＋ New</button>
       <button class="btn act" onclick="chooseSize(doPrint)">🖨 Print</button>
       <button class="btn act" onclick="chooseSize(doPDF)">⬇ PDF</button>
-      <button class="btn act" onclick="doJPG()">⬇ JPG (A5)</button>
+      <button class="btn act" onclick="doJPG()">⬇ JPG</button>
       <button class="btn wa act" onclick="sendWhatsApp()">WhatsApp</button>
     </div>
 
@@ -491,7 +516,13 @@ table.items tbody tr:nth-child(even){background:#fafbfc}
             <div class="v">
               <div><span class="lbl">Check-in:</span> <span id="ivCin">—</span></div>
               <div><span class="lbl">Check-out:</span> <span id="ivCout">—</span></div>
-              <div><span class="lbl">Nights:</span> <span id="ivNights">—</span> &nbsp;·&nbsp; <span class="lbl">Guests:</span> <span id="ivPeople">—</span></div>
+              <div><span class="lbl">Nights:</span> <span id="ivNights">—</span> &nbsp;·&nbsp; <span class="lbl">Rooms:</span> <span id="ivRooms">—</span> &nbsp;·&nbsp; <span class="lbl">Guests:</span> <span id="ivPeople">—</span></div>
+            </div>
+          </div>
+          <div class="block" id="ivAgentBlock" style="display:none;grid-column:1 / -1">
+            <div class="h">Booking via Travel Agent · Bill to Agent</div>
+            <div class="v">
+              <span class="bill-name" id="ivAgentName">—</span> &nbsp; <span class="lbl">Mobile:</span> <span id="ivAgentPhone">—</span>
             </div>
           </div>
         </div>
@@ -586,7 +617,7 @@ table.items tbody tr:nth-child(even){background:#fafbfc}
     <div class="size-opts" style="grid-template-columns:1fr 1fr 1fr">
       <div class="size-opt" onclick="hide('savedOverlay');chooseSize(doPrint)"><b>🖨</b><small>Print</small></div>
       <div class="size-opt" onclick="hide('savedOverlay');chooseSize(doPDF)"><b>PDF</b><small>A5 / A4</small></div>
-      <div class="size-opt" onclick="hide('savedOverlay');doJPG()"><b>JPG</b><small>A5</small></div>
+      <div class="size-opt" onclick="hide('savedOverlay');doJPG()"><b>JPG</b><small>image</small></div>
     </div>
     <div class="close" style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap">
       <button class="x" onclick="hide('savedOverlay')">Stay on this invoice</button>
@@ -877,7 +908,8 @@ function setActiveHotel(h){ // hotel_admin path: hotel object came from login/me
   setActiveHotelFromConfig();
 }
 function setActiveHotelFromConfig(){
-  $('roomCat').innerHTML=ROOM_CATEGORIES.map(r=>`<option>${r}</option>`).join("");
+  if(!document.querySelector('#roomRows .room-row')) addRoomRow();
+  refreshRoomTypeSelects();
   applyLogo(); applyGate(); setFormLocked(false); render(); refreshInvoiceNumber();
 }
 
@@ -932,6 +964,8 @@ function applyUpiQr(balance){
 /* ---------- read-only lock for viewing a saved invoice ---------- */
 function setFormLocked(locked){
   document.querySelectorAll('.form-panel input, .form-panel select, .form-panel textarea').forEach(el=>{ el.disabled=locked; });
+  document.querySelectorAll('.form-panel .addrow, .form-panel .rt-del').forEach(b=>{ b.disabled=locked; });
+  if(!locked) updateRoomDelete();
   $('saveBtn').style.display=locked?'none':'';
   const h=$('saveHint');
   if(h){ h.style.display=''; h.textContent=locked
@@ -969,10 +1003,18 @@ function calcNights(){
 
 /* ---------- core calculation + render ---------- */
 let lastComputedTotal=0;
+function getRooms(){
+  return [...document.querySelectorAll('#roomRows .room-row')].map(r=>({
+    type:r.querySelector('.rt-type').value,
+    count:+r.querySelector('.rt-count').value||0,
+    tariff:+r.querySelector('.rt-tariff').value||0
+  }));
+}
 function compute(){
   const nights=calcNights();$('nights').value=nights;
-  const rooms=+$('rooms').value||0, rate=+$('roomRate').value||0;
-  const roomCharge=rate*rooms*nights;
+  const roomRows=getRooms();
+  const totalRooms=roomRows.reduce((s,r)=>s+r.count,0);
+  const roomCharge=roomRows.reduce((s,r)=>s+r.count*r.tariff,0)*nights;
   const mealOn=$('mealOpt').checked;
   const mealCharge=mealOn?(+$('mealCharge').value||0):0;
   const exP=+$('exPersons').value||0, exR=+$('exRate').value||0;
@@ -982,11 +1024,13 @@ function compute(){
   if($('discType').value==='percent') disc=sub*dv/100; else disc=dv;
   if(disc>sub)disc=sub;
   const computedGrand=Math.max(0,sub-disc);
-  // keep grand total in sync unless user manually edited it away from the last computed value
   const gt=$('grandTotal');
   if(gt.value===''||+gt.value===lastComputedTotal) gt.value=Math.round(computedGrand);
   lastComputedTotal=Math.round(computedGrand);
-  return {nights,rooms,rate,roomCharge,mealOn,mealType:$('mealType').value,mealCharge,exP,exR,exCharge,sub,disc,
+  // rooms summary line under the table
+  const sum=$('roomsSummary');
+  if(sum) sum.textContent = totalRooms? (totalRooms+' room(s) · '+nights+' night(s)') : '';
+  return {nights,roomRows,totalRooms,roomCharge,mealOn,mealType:$('mealType').value,mealCharge,exP,exR,exCharge,sub,disc,
           discType:$('discType').value,discVal:dv};
 }
 
@@ -1016,12 +1060,24 @@ function render(){
   $('ivCin').textContent=fmtDate($('cin').value);
   $('ivCout').textContent=fmtDate($('cout').value);
   $('ivNights').textContent=c.nights;
+  $('ivRooms').textContent=c.totalRooms||"—";
   $('ivPeople').textContent=($('people').value||"—")+(c.exP?(" (+"+c.exP+" extra)"):"");
 
-  // items
+  // agent block
+  const agentOn=$('agentOpt').checked;
+  if(agentOn){
+    $('ivAgentBlock').style.display='';
+    $('ivAgentName').textContent=$('agentName').value||"—";
+    $('ivAgentPhone').textContent=$('agentPhone').value||"—";
+  } else $('ivAgentBlock').style.display='none';
+
+  // items — one line per room type
   let rows="";
-  const cat=$('roomCat').value||"Room";
-  rows+=`<tr><td class="it-desc"><b>${cat} Room</b><small>${c.rooms} room(s) × ${c.nights} night(s)</small></td><td class="r">${c.rooms*c.nights}</td><td class="r">${fmt(c.rate)}</td><td class="r">${fmt(c.roomCharge)}</td></tr>`;
+  c.roomRows.forEach(r=>{
+    if(r.count<=0) return;
+    const amt=r.count*r.tariff*c.nights;
+    rows+=`<tr><td class="it-desc"><b>${r.type} Room</b><small>${r.count} room(s) × ${c.nights} night(s)</small></td><td class="r">${r.count}</td><td class="r">${fmt(r.tariff)}</td><td class="r">${fmt(amt)}</td></tr>`;
+  });
   if(c.mealOn&&c.mealCharge>0)
     rows+=`<tr><td class="it-desc"><b>Meal Plan — ${c.mealType}</b><small>Flat charge</small></td><td class="r">1</td><td class="r">${fmt(c.mealCharge)}</td><td class="r">${fmt(c.mealCharge)}</td></tr>`;
   if(c.exP>0&&c.exR>0)
@@ -1134,22 +1190,62 @@ $('mealOpt').addEventListener('change',()=>{
   render();
 });
 
+/* ---------- room rows ---------- */
+function roomTypeOptions(sel){ return ROOM_CATEGORIES.map(c=>`<option${c===sel?' selected':''}>${c}</option>`).join(''); }
+function addRoomRow(type,count,tariff){
+  const div=document.createElement('div'); div.className='room-row';
+  div.innerHTML=`<select class="rt-type">${roomTypeOptions(type||ROOM_CATEGORIES[0])}</select>`+
+    `<input class="rt-count" type="number" min="1" value="${count!=null?count:1}">`+
+    `<input class="rt-tariff" type="number" min="0" value="${tariff!=null?tariff:0}" placeholder="₹">`+
+    `<button class="rt-del" title="Remove" onclick="removeRoomRow(this)">✕</button>`;
+  $('roomRows').appendChild(div);
+  updateRoomDelete(); clearInvalid(); setSaved(false); render();
+}
+function removeRoomRow(btn){
+  if(document.querySelectorAll('#roomRows .room-row').length<=1) return;
+  btn.closest('.room-row').remove();
+  updateRoomDelete(); setSaved(false); render();
+}
+function updateRoomDelete(){
+  const rows=document.querySelectorAll('#roomRows .room-row');
+  rows.forEach(r=>{ const d=r.querySelector('.rt-del'); if(d) d.disabled=rows.length<=1; });
+}
+function refreshRoomTypeSelects(){
+  document.querySelectorAll('#roomRows .rt-type').forEach(sel=>{
+    const cur=sel.value; sel.innerHTML=roomTypeOptions(ROOM_CATEGORIES.includes(cur)?cur:ROOM_CATEGORIES[0]);
+  });
+}
+function resetRoomRows(){ $('roomRows').innerHTML=''; addRoomRow(); }
+$('roomRows').addEventListener('input',onFieldEdit);
+$('roomRows').addEventListener('change',onFieldEdit);
+
+/* ---------- travel agent toggle ---------- */
+$('agentOpt').addEventListener('change',()=>{
+  $('agentFields').style.display=$('agentOpt').checked?'':'none';
+  clearInvalid(); setSaved(false); render();
+});
+$('agentPhone').addEventListener('input',e=>{ e.target.value=e.target.value.replace(/\D/g,'').slice(0,10); });
+
 /* ---------- collect invoice object ---------- */
 function collectInvoice(){
   const c=compute();
   const g=gstCalc();
+  const rooms=c.roomRows.filter(r=>r.count>0);
+  const agentOn=$('agentOpt').checked;
   return{
     invoice_number:$('invNo').value, invoice_date:$('invDate').value,
     guest_name:$('gName').value, guest_phone:$('gPhone').value,
     checkin_date:$('cin').value, checkout_date:$('cout').value, nights:c.nights,
-    num_rooms:+$('rooms').value||0, num_people:+$('people').value||0, room_category:$('roomCat').value,
-    room_rate:c.rate, room_charge:c.roomCharge,
+    rooms:rooms, num_rooms:c.totalRooms, num_people:+$('people').value||0,
+    room_category: rooms.length===1?rooms[0].type:(rooms.length>1?'Multiple':''),
+    room_rate: rooms.length===1?rooms[0].tariff:null, room_charge:c.roomCharge,
     meal_plan_opted:c.mealOn, meal_plan_type:c.mealOn?c.mealType:"", meal_charge:c.mealCharge,
     extra_persons:c.exP, extra_person_rate:c.exR, extra_charge:c.exCharge,
     discount_type:c.discType, discount_value:c.discVal, discount_amount:c.disc,
     subtotal:c.sub,
     net_amount:g.net, gst_exclusive:g.exclusive, gst_rate:g.rate, taxable_value:g.taxable, gst_amount:g.gst,
     total_amount:g.final, amount_in_words:inWords(g.final),
+    travel_agent:agentOn, agent_name:agentOn?$('agentName').value:"", agent_phone:agentOn?$('agentPhone').value:"",
     advance_amount:+$('advance').value||0, balance_amount:round2(g.final-(+$('advance').value||0)),
     payment_mode:$('payMode').value
   };
@@ -1161,7 +1257,6 @@ const REQUIRED=[
   {id:'gPhone', label:'Mobile number (10 digits)',  test:v=>/^\d{10}$/.test(v)},
   {id:'cin',    label:'Check-in date',               test:v=>!!v},
   {id:'cout',   label:'Check-out date',              test:v=>!!v},
-  {id:'roomRate',label:'Room tariff (per night)',    test:v=>(+v)>0},
 ];
 function clearInvalid(){
   document.querySelectorAll('.form-panel .invalid').forEach(e=>e.classList.remove('invalid'));
@@ -1171,6 +1266,16 @@ function validateInvoice(){
   const miss=[];
   REQUIRED.forEach(r=>{ const el=$(r.id); const ok=r.test(el.value); el.classList.toggle('invalid',!ok); if(!ok) miss.push(r.label); });
   if($('cin').value && $('cout').value && calcNights()<=0){ miss.push('Check-out must be after check-in'); $('cout').classList.add('invalid'); }
+  // rooms: at least one row with qty and a tariff > 0
+  const rows=[...document.querySelectorAll('#roomRows .room-row')];
+  let roomOk=false;
+  rows.forEach(r=>{ const cnt=+r.querySelector('.rt-count').value||0, tf=+r.querySelector('.rt-tariff').value||0; const bad=(cnt>0&&tf<=0); r.querySelector('.rt-tariff').classList.toggle('invalid',bad); if(cnt>0&&tf>0) roomOk=true; });
+  if(!roomOk) miss.push('At least one room with quantity and a tariff');
+  // travel agent details when toggled on
+  if($('agentOpt').checked){
+    if(!$('agentName').value.trim()){ miss.push('Travel agent name'); $('agentName').classList.add('invalid'); }
+    if(!/^\d{10}$/.test($('agentPhone').value)){ miss.push('Travel agent mobile (10 digits)'); $('agentPhone').classList.add('invalid'); }
+  }
   if(gstCalc().final<=0){ miss.push('Total amount must be more than ₹0'); $('grandTotal').classList.add('invalid'); }
   return miss;
 }
@@ -1225,8 +1330,14 @@ async function reloadInvoice(id){
     $('invNo').value=i.invoice_number;$('invDate').value=i.invoice_date;
     $('gName').value=i.guest_name;$('gPhone').value=i.guest_phone;
     $('cin').value=i.checkin_date;$('cout').value=i.checkout_date;
-    $('rooms').value=i.num_rooms;$('people').value=i.num_people;
-    $('roomCat').value=i.room_category;$('roomRate').value=i.room_rate;
+    $('people').value=i.num_people;
+    $('roomRows').innerHTML='';
+    const rms = (Array.isArray(i.rooms)&&i.rooms.length) ? i.rooms : [{type:i.room_category||ROOM_CATEGORIES[0],count:i.num_rooms||1,tariff:i.room_rate||0}];
+    rms.forEach(r=>addRoomRow(r.type,r.count,r.tariff));
+    updateRoomDelete();
+    $('agentOpt').checked=!!i.travel_agent;
+    $('agentFields').style.display=i.travel_agent?'':'none';
+    $('agentName').value=i.agent_name||''; $('agentPhone').value=i.agent_phone||'';
     $('mealOpt').checked=!!i.meal_plan_opted;
     $('mealTypeWrap').style.display=i.meal_plan_opted?'':'none';
     $('mealChargeWrap').style.display=i.meal_plan_opted?'':'none';
@@ -1245,7 +1356,9 @@ async function reloadInvoice(id){
 /* ---------- reset ---------- */
 function resetForm(){
   ['gName','gPhone','cin','cout'].forEach(id=>$(id).value='');
-  $('rooms').value=1;$('people').value=2;$('roomRate').value=0;
+  $('people').value=2;
+  resetRoomRows();
+  $('agentOpt').checked=false;$('agentFields').style.display='none';$('agentName').value='';$('agentPhone').value='';
   $('mealOpt').checked=false;$('mealTypeWrap').style.display='none';$('mealChargeWrap').style.display='none';$('mealCharge').value=0;
   $('exPersons').value=0;$('exRate').value=0;$('discVal').value=0;$('advance').value=0;
   lastComputedTotal=0;$('grandTotal').value=0;
@@ -1269,10 +1382,17 @@ function hide(id){$(id).classList.remove('show')}
 /* ---------- capture invoice to canvas ---------- */
 async function captureCanvas(scale=2.5){
   await document.fonts.ready;
-  return await html2canvas($('invoice'),{scale,backgroundColor:'#ffffff',useCORS:true,logging:false});
+  const node=$('invoice');
+  // force the full desktop layout for a consistent, full-width document on any device
+  node.classList.add('exporting');
+  let canvas;
+  try{
+    canvas=await html2canvas(node,{scale,backgroundColor:'#ffffff',useCORS:true,logging:false,windowWidth:1024});
+  } finally { node.classList.remove('exporting'); }
+  return canvas;
 }
 
-/* ---------- PDF ---------- */
+/* ---------- PDF (fills page width; paginates if taller than one page) ---------- */
 async function doPDF(size){
   try{
     toast("Building PDF…");
@@ -1280,32 +1400,41 @@ async function doPDF(size){
     const {jsPDF}=window.jspdf;
     const pdf=new jsPDF({orientation:'portrait',unit:'mm',format:size});
     const pw=pdf.internal.pageSize.getWidth(), ph=pdf.internal.pageSize.getHeight();
-    const m=8, availW=pw-2*m, availH=ph-2*m;
-    let w=availW, h=canvas.height*w/canvas.width;
-    if(h>availH){h=availH;w=canvas.width*h/canvas.height;}
-    const x=(pw-w)/2;
-    pdf.addImage(canvas.toDataURL('image/jpeg',0.95),'JPEG',x,m,w,h);
+    const m=6, imgW=pw-2*m, availH=ph-2*m;
+    const pxPerMm=canvas.width/imgW;
+    const fullHmm=canvas.height/pxPerMm;
+    if(fullHmm<=availH+0.5){
+      pdf.addImage(canvas.toDataURL('image/jpeg',0.95),'JPEG',m,m,imgW,fullHmm);
+    }else{
+      const pagePxH=Math.floor(availH*pxPerMm);
+      let y=0,page=0;
+      while(y<canvas.height){
+        const sliceH=Math.min(pagePxH,canvas.height-y);
+        const c=document.createElement('canvas');c.width=canvas.width;c.height=sliceH;
+        const cx=c.getContext('2d');cx.fillStyle='#fff';cx.fillRect(0,0,c.width,sliceH);
+        cx.drawImage(canvas,0,y,canvas.width,sliceH,0,0,canvas.width,sliceH);
+        if(page>0)pdf.addPage(size,'portrait');
+        pdf.addImage(c.toDataURL('image/jpeg',0.95),'JPEG',m,m,imgW,sliceH/pxPerMm);
+        y+=sliceH;page++;
+      }
+    }
     pdf.save(($('invNo').value||'invoice')+'.pdf');
     toast("PDF downloaded ✓");
   }catch(e){toast("PDF failed: "+e.message,true)}
 }
 
-/* ---------- JPG (A5) ---------- */
+/* ---------- JPG (full width, no side margins) ---------- */
 async function doJPG(){
   try{
     toast("Building JPG…");
     const src=await captureCanvas(3);
-    // place onto a true A5 portrait canvas (150 dpi ≈ 874 × 1240)
-    const A5W=874,A5H=1240,pad=24;
-    const out=document.createElement('canvas');out.width=A5W;out.height=A5H;
-    const ctx=out.getContext('2d');ctx.fillStyle='#fff';ctx.fillRect(0,0,A5W,A5H);
-    const availW=A5W-2*pad, availH=A5H-2*pad;
-    let w=availW,h=src.height*w/src.width;
-    if(h>availH){h=availH;w=src.width*h/src.height;}
-    ctx.drawImage(src,(A5W-w)/2,pad,w,h);
+    const pad=Math.round(src.width*0.025);
+    const out=document.createElement('canvas');out.width=src.width+pad*2;out.height=src.height+pad*2;
+    const ctx=out.getContext('2d');ctx.fillStyle='#fff';ctx.fillRect(0,0,out.width,out.height);
+    ctx.drawImage(src,pad,pad);
     const a=document.createElement('a');a.href=out.toDataURL('image/jpeg',0.95);
-    a.download=($('invNo').value||'invoice')+'_A5.jpg';a.click();
-    toast("JPG (A5) downloaded ✓");
+    a.download=($('invNo').value||'invoice')+'.jpg';a.click();
+    toast("JPG downloaded ✓");
   }catch(e){toast("JPG failed: "+e.message,true)}
 }
 
@@ -1319,21 +1448,29 @@ function doPrint(size){
 
 /* ---------- WhatsApp ---------- */
 function sendWhatsApp(){
-  let phone=($('gPhone').value||'').replace(/\D/g,'');
+  const agentOn=$('agentOpt').checked;
+  const recipientRaw = agentOn ? ($('agentPhone').value||'') : ($('gPhone').value||'');
+  let phone=recipientRaw.replace(/\D/g,'');
   if(phone.length===10)phone='91'+phone;
   else if(phone.length===11&&phone.startsWith('0'))phone='91'+phone.slice(1);
   const g=gstCalc(); const adv=+$('advance').value||0;
+  const c=compute();
+  const greet = agentOn ? ($('agentName').value||'Travel Partner') : ($('gName').value||'Guest');
+  const roomLines = c.roomRows.filter(r=>r.count>0)
+    .map(r=>`• ${r.type} × ${r.count} @ ${rupee(r.tariff)}/night`).join('\n');
+  const guestLine = agentOn ? `\n*Guest:* ${$('gName').value||'-'}` : '';
   const msg=
 `*${CONFIG.business_name||''} — ${CONFIG.tagline||''}*
 
-Dear ${$('gName').value||'Guest'}, here is your invoice summary:
-
+Dear ${greet}, here is the invoice summary:
+${guestLine}
 *Invoice No:* ${$('invNo').value}
 *Date:* ${fmtDate($('invDate').value)}
 *Check-in:* ${fmtDate($('cin').value)}
 *Check-out:* ${fmtDate($('cout').value)}
-*Nights:* ${calcNights()}
-*Room:* ${$('roomCat').value} × ${$('rooms').value}
+*Nights:* ${c.nights}
+*Rooms:*
+${roomLines||'-'}
 
 *Taxable Value:* ${rupee(g.taxable)}
 *GST @ ${g.rate}%:* ${rupee(g.gst)}
@@ -1342,10 +1479,10 @@ Dear ${$('gName').value||'Guest'}, here is your invoice summary:
 *Balance Due:* ${rupee(g.final-adv)}
 
 ${CONFIG.upi_id?('Pay via UPI: '+CONFIG.upi_id+'\n\n'):''}Please find the detailed invoice attached.
-Thank you for choosing us! 🙏`;
+Thank you! 🙏`;
   const url=(phone?('https://wa.me/'+phone):'https://wa.me/')+'?text='+encodeURIComponent(msg);
   window.open(url,'_blank');
-  toast("WhatsApp opened — attach the downloaded PDF/JPG");
+  toast(agentOn?"WhatsApp opened to the travel agent — attach the invoice":"WhatsApp opened — attach the downloaded PDF/JPG");
 }
 
 /* ---------- live updates on every input ---------- */
@@ -1357,6 +1494,7 @@ document.querySelectorAll('input,select').forEach(el=>{
 
 /* ---------- init ---------- */
 document.body.dataset.mtab='details';
+addRoomRow();   // start with one room line
 applyTheme((function(){try{return localStorage.getItem('vp_theme')||'light'}catch(e){return 'light'}})());
 $('invDate').value=todayIST();
 $('connPill').textContent="…";
