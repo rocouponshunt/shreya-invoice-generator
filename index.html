@@ -1669,16 +1669,14 @@ function resetTotalToComputed(){
 
 /* ---------- void / cancel a saved invoice (super admin) ---------- */
 function updateVoidUI(){
-  const isSuper = SESSION.role==='super_admin';
   const btn=$('voidBtn');
   if(btn){
-    btn.style.display = (isSuper && !!LOADED_INVOICE_ID) ? '' : 'none';
+    btn.style.display = (!!SESSION.token && !!LOADED_INVOICE_ID) ? '' : 'none';
     btn.textContent = LOADED_VOIDED ? '↩ Un-void' : '🚫 Void';
   }
   const stamp=$('ivVoidStamp'); if(stamp) stamp.style.display = LOADED_VOIDED ? '' : 'none';
 }
 async function voidCurrent(){
-  if(SESSION.role!=='super_admin'){ toast("Only super admin can void invoices",true); return; }
   if(!LOADED_INVOICE_ID){ toast("Open a saved invoice first",true); return; }
   const voiding = !LOADED_VOIDED;
   let reason='';
