@@ -167,6 +167,42 @@ body.dark .save-error{color:#ffb4ad}
 .addrow{background:transparent;border:1px dashed var(--gold);color:var(--gold);border-radius:9px;padding:9px;width:100%;cursor:pointer;font-family:'Jost',sans-serif;font-size:13px;margin-top:2px}
 .addrow:hover{background:rgba(201,162,75,.08)}
 
+/* ---------- Additional items / services rows ---------- */
+.extra-head{grid-template-columns:1fr 48px 92px 26px}
+.extra-row{display:grid;grid-template-columns:1fr 48px 92px 26px;gap:6px;margin-bottom:6px;align-items:center}
+.extra-row input{padding:8px 8px;font-size:13px}
+#extraRows:empty + .addrow{margin-top:0}
+.extra-empty{font-size:11.5px;color:var(--app-muted);text-transform:none;letter-spacing:0;padding:2px 2px 8px}
+
+/* ---------- Top nav: hamburger + new invoice ---------- */
+.newinv-btn{background:linear-gradient(135deg,var(--gold),var(--gold-2))!important;color:var(--navy)!important;border:none!important;font-weight:600;box-shadow:0 6px 18px rgba(201,162,75,.35)}
+.newinv-btn:hover{filter:brightness(1.05)}
+.menu-btn{font-size:18px;line-height:1;padding:7px 12px}
+
+/* ---------- Slide-in drawer ---------- */
+.drawer-scrim{position:fixed;inset:0;background:rgba(6,12,20,.5);backdrop-filter:blur(2px);opacity:0;pointer-events:none;transition:opacity .2s;z-index:70}
+.drawer-scrim.show{opacity:1;pointer-events:auto}
+.drawer{position:fixed;top:0;left:0;height:100%;width:min(300px,84vw);z-index:75;transform:translateX(-102%);transition:transform .24s cubic-bezier(.4,0,.2,1);
+  background:linear-gradient(180deg,#0e1f31,#0c1826);border-right:1px solid rgba(201,162,75,.3);box-shadow:20px 0 60px rgba(0,0,0,.4);display:flex;flex-direction:column}
+.drawer.show{transform:translateX(0)}
+.drawer-head{display:flex;align-items:center;gap:12px;padding:20px 18px;border-bottom:1px solid rgba(201,162,75,.18)}
+.drawer-head .brandmark{width:38px;height:38px;font-size:18px}
+.drawer-title{font-family:'Playfair Display',serif;font-weight:600;color:#fff;font-size:17px;line-height:1.1}
+.drawer-title span{color:var(--gold-2);font-style:italic}
+.drawer-sub{color:#9fb2c7;font-size:11.5px;margin-top:2px;max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.drawer-x{margin-left:auto;background:transparent;border:none;color:#9fb2c7;font-size:18px;cursor:pointer;padding:4px 8px;border-radius:8px}
+.drawer-x:hover{background:rgba(255,255,255,.08);color:#fff}
+.drawer-nav{display:flex;flex-direction:column;padding:12px 12px;gap:4px;flex:1}
+.drawer-item{display:flex;align-items:center;gap:13px;width:100%;text-align:left;background:transparent;border:none;color:#e6edf5;
+  font-family:'Jost',sans-serif;font-size:14.5px;padding:12px 14px;border-radius:11px;cursor:pointer;text-decoration:none;transition:.14s}
+.drawer-item span{width:22px;text-align:center;font-size:16px;flex:none}
+.drawer-item:hover{background:rgba(201,162,75,.14);color:#fff}
+.drawer-item.danger{color:#ffb4ad}
+.drawer-item.danger:hover{background:rgba(224,89,79,.16)}
+.drawer-sep{height:1px;background:rgba(255,255,255,.08);margin:8px 6px}
+.drawer-foot{padding:14px 18px;border-top:1px solid rgba(201,162,75,.18);color:#9fb2c7;font-size:12px}
+.drawer-foot b{color:var(--gold-2)}
+
 /* ---------- Preview panel ---------- */
 .preview-panel{padding:26px;display:flex;flex-direction:column;align-items:center;gap:18px}
 .toolbar{display:flex;flex-wrap:wrap;gap:10px;width:100%;max-width:720px;justify-content:center}
@@ -293,8 +329,9 @@ table.items tbody tr:nth-child(even){background:#fafbfc}
   .appbar .spacer{display:none}
   .who{order:-1;flex:1;text-align:left;font-size:14px;max-width:none;color:var(--gold-2)}
   .who b{color:var(--gold-2)}
-  #adminLink{order:1} #themeBtn{order:2} #logoutBtn{order:3}
+  #menuBtn{order:-3} #newInvTop{order:1} #themeBtn{order:2}
   .appbar .themebtn{padding:8px 10px}
+  #newInvTop{font-size:13px;padding:8px 12px}
   #connPill{display:none}                         /* status not needed up top on mobile */
   .hsel{order:5;flex-basis:100%;max-width:none;margin-top:4px}
 
@@ -347,6 +384,7 @@ table.items tbody tr:nth-child(even){background:#fafbfc}
 <body>
 
 <div class="appbar">
+  <button class="themebtn menu-btn" id="menuBtn" onclick="openMenu()" title="Menu" style="display:none">☰</button>
   <div class="brandmark">◆</div>
   <div>
     <h1>Hotel <span>Invoice</span> Portal</h1>
@@ -355,9 +393,8 @@ table.items tbody tr:nth-child(even){background:#fafbfc}
   <div class="spacer"></div>
   <select id="hotelPicker" class="hsel" style="display:none" onchange="onPickHotel()"></select>
   <span class="who" id="who" style="display:none"></span>
-  <a class="themebtn" id="adminLink" href="https://vanta-invoice-pro.lovable.app/admin" target="_blank" rel="noopener" style="display:none;text-decoration:none" title="Open Admin Portal">⚙ Admin</a>
+  <button class="themebtn newinv-btn" id="newInvTop" onclick="resetForm()" title="Start a new invoice" style="display:none">＋ Invoice</button>
   <button class="themebtn" id="themeBtn" onclick="toggleTheme()" title="Toggle light / dark">🌙</button>
-  <button class="themebtn" id="logoutBtn" style="display:none" onclick="logout()" title="Log out">⎋</button>
   <span class="pill" id="connPill">…</span>
 </div>
 <div class="banner" id="banner" style="display:none"></div>
@@ -389,7 +426,7 @@ table.items tbody tr:nth-child(even){background:#fafbfc}
           <input id="gName" placeholder="e.g. Rohit Sharma" autocomplete="off">
           <div class="suggest" id="gSuggest" style="display:none"></div>
         </div>
-        <div class="field full"><label class="req">Mobile Number</label><input id="gPhone" placeholder="10-digit mobile" inputmode="numeric" maxlength="10"></div>
+        <div class="field full"><label>Mobile Number <span class="hint">(optional)</span></label><input id="gPhone" placeholder="10-digit mobile (optional)" inputmode="numeric" maxlength="10"></div>
       </div>
     </div>
 
@@ -436,6 +473,14 @@ table.items tbody tr:nth-child(even){background:#fafbfc}
     </div>
 
     <div class="card">
+      <h3>Additional Items / Services</h3>
+      <div class="extra-empty" id="extraEmptyHint">Add anything beyond rooms — food/plates, projector, hall rent, laundry, etc. Each line is added to the bill.</div>
+      <div class="room-head extra-head" id="extraHead" style="display:none"><span>Description</span><span>Qty</span><span>₹ / unit</span><span></span></div>
+      <div id="extraRows"></div>
+      <button class="addrow" id="addExtraBtn" onclick="addExtraRow()">＋ Add item / service</button>
+    </div>
+
+    <div class="card">
       <h3>Payment</h3>
       <div class="grid">
         <div class="field full"><label>Total Amount <span class="hint">(auto — editable)</span></label><input type="number" id="grandTotal" min="0" value="0"></div>
@@ -470,8 +515,6 @@ table.items tbody tr:nth-child(even){background:#fafbfc}
   <!-- ====================== PREVIEW ====================== -->
   <div class="preview-panel">
     <div class="toolbar">
-      <button class="btn ghost" onclick="loadPastInvoices()">📁 Past Invoices</button>
-      <button class="btn ghost" onclick="resetForm()">＋ New</button>
       <button class="btn act" onclick="chooseSize(doPrint)">🖨 Print</button>
       <button class="btn act" onclick="chooseSize(doPDF)">⬇ PDF</button>
       <button class="btn act" onclick="doJPG()">⬇ JPG</button>
@@ -671,6 +714,28 @@ table.items tbody tr:nth-child(even){background:#fafbfc}
   </div>
 </div>
 
+<!-- ====================== SIDE DRAWER (hamburger menu) ====================== -->
+<div class="drawer-scrim" id="drawerScrim" onclick="closeMenu()"></div>
+<aside class="drawer" id="drawer" aria-hidden="true">
+  <div class="drawer-head">
+    <div class="brandmark">◆</div>
+    <div>
+      <div class="drawer-title">Hotel <span>Invoice</span></div>
+      <div class="drawer-sub" id="drawerHotel">—</div>
+    </div>
+    <button class="drawer-x" onclick="closeMenu()" title="Close">✕</button>
+  </div>
+  <nav class="drawer-nav">
+    <button class="drawer-item" onclick="closeMenu();resetForm()"><span>＋</span> New Invoice</button>
+    <button class="drawer-item" onclick="closeMenu();loadPastInvoices()"><span>📁</span> Past Invoices</button>
+    <a class="drawer-item" id="adminLink" href="https://vanta-invoice-pro.lovable.app/admin" target="_blank" rel="noopener" style="display:none"><span>⚙</span> Admin Portal</a>
+    <div class="drawer-sep"></div>
+    <button class="drawer-item" onclick="toggleTheme()"><span id="drawerThemeIcon">🌙</span> Toggle Theme</button>
+    <button class="drawer-item danger" id="logoutBtn" style="display:none" onclick="closeMenu();logout()"><span>⎋</span> Log out</button>
+  </nav>
+  <div class="drawer-foot" id="drawerFoot">Vantara Premium · Invoice Portal</div>
+</aside>
+
 <div class="toast" id="toast"></div>
 
 <script>
@@ -725,12 +790,17 @@ function gstCalc(){
 function applyTheme(t){
   document.body.classList.toggle('dark', t==='dark');
   const b=$('themeBtn'); if(b) b.textContent = (t==='dark') ? '☀️' : '🌙';
+  const di=$('drawerThemeIcon'); if(di) di.textContent = (t==='dark') ? '☀️' : '🌙';
 }
 function toggleTheme(){
   const dark = document.body.classList.contains('dark');
   const t = dark ? 'light' : 'dark';
   applyTheme(t); try{localStorage.setItem('vp_theme',t)}catch(e){}
 }
+
+/* ---------- hamburger drawer ---------- */
+function openMenu(){ $('drawer').classList.add('show'); $('drawerScrim').classList.add('show'); $('drawer').setAttribute('aria-hidden','false'); }
+function closeMenu(){ $('drawer').classList.remove('show'); $('drawerScrim').classList.remove('show'); $('drawer').setAttribute('aria-hidden','true'); }
 
 /* ---------- API helper (everything goes through the edge function) ---------- */
 async function rawApi(action, params){
@@ -831,6 +901,7 @@ function logout(silent,reason){
   lsDel('vp_token'); lsDel('vp_refresh');
   $('logoutBtn').style.display='none'; $('who').style.display='none'; $('hotelPicker').style.display='none';
   const al=$('adminLink'); if(al) al.style.display='none';
+  $('menuBtn').style.display='none'; $('newInvTop').style.display='none'; closeMenu();
   $('banner').style.display='none';
   showAuth('login');
   if(reason) authErr(reason);
@@ -852,16 +923,21 @@ async function restoreSession(){
 async function postLogin(){
   $('connPill').textContent="● Connected"; $('connPill').className="pill";
   $('logoutBtn').style.display=''; $('adminLink').style.display=''; 
+  $('menuBtn').style.display=''; $('newInvTop').style.display='';
   const who=$('who'); who.style.display='';
   if(SESSION.role==='super_admin'){
     who.innerHTML='<b>Super Admin</b>';
     $('appSub').textContent='Super admin — pick a hotel to bill for';
+    $('drawerHotel').textContent='Super Admin';
+    $('drawerFoot').innerHTML='Signed in as <b>Super Admin</b>';
     await loadHotelPicker();
   }else{
     $('hotelPicker').style.display='none';
     const h=SESSION.hotel||{};
     who.innerHTML='<b>'+(h.business_name||'Hotel')+'</b>';
     $('appSub').textContent=h.tagline||'Hotel admin';
+    $('drawerHotel').textContent=h.business_name||'Hotel';
+    $('drawerFoot').innerHTML='Signed in — <b>'+(h.business_name||'Hotel')+'</b>';
     setActiveHotel(h);
   }
 }
@@ -1019,7 +1095,9 @@ function compute(){
   const mealCharge=mealOn?(+$('mealCharge').value||0):0;
   const exP=+$('exPersons').value||0, exR=+$('exRate').value||0;
   const exCharge=exP*exR*nights;
-  const sub=roomCharge+mealCharge+exCharge;
+  const extras=getExtras();
+  const extraCharge=round2(extras.reduce((s,e)=>s+e.amount,0));
+  const sub=roomCharge+mealCharge+exCharge+extraCharge;
   let disc=0;const dv=+$('discVal').value||0;
   if($('discType').value==='percent') disc=sub*dv/100; else disc=dv;
   if(disc>sub)disc=sub;
@@ -1030,7 +1108,7 @@ function compute(){
   // rooms summary line under the table
   const sum=$('roomsSummary');
   if(sum) sum.textContent = totalRooms? (totalRooms+' room(s) · '+nights+' night(s)') : '';
-  return {nights,roomRows,totalRooms,roomCharge,mealOn,mealType:$('mealType').value,mealCharge,exP,exR,exCharge,sub,disc,
+  return {nights,roomRows,totalRooms,roomCharge,mealOn,mealType:$('mealType').value,mealCharge,exP,exR,exCharge,extras,extraCharge,sub,disc,
           discType:$('discType').value,discVal:dv};
 }
 
@@ -1082,6 +1160,11 @@ function render(){
     rows+=`<tr><td class="it-desc"><b>Meal Plan — ${c.mealType}</b><small>Flat charge</small></td><td class="r">1</td><td class="r">${fmt(c.mealCharge)}</td><td class="r">${fmt(c.mealCharge)}</td></tr>`;
   if(c.exP>0&&c.exR>0)
     rows+=`<tr><td class="it-desc"><b>Extra Person</b><small>${c.exP} × ${c.nights} night(s)</small></td><td class="r">${c.exP*c.nights}</td><td class="r">${fmt(c.exR)}</td><td class="r">${fmt(c.exCharge)}</td></tr>`;
+  c.extras.forEach(e=>{
+    if(!e.desc && e.amount<=0) return;
+    const qty=e.qty||1;
+    rows+=`<tr><td class="it-desc"><b>${escapeHtml(e.desc||'Item')}</b>${qty>1?`<small>${qty} × ${fmt(e.rate)}</small>`:''}</td><td class="r">${qty}</td><td class="r">${fmt(e.rate)}</td><td class="r">${fmt(e.amount)}</td></tr>`;
+  });
   $('ivItems').innerHTML=rows;
 
   $('ivSub').textContent=fmt(c.sub);
@@ -1195,7 +1278,7 @@ function roomTypeOptions(sel){ return ROOM_CATEGORIES.map(c=>`<option${c===sel?'
 function addRoomRow(type,count,tariff){
   const div=document.createElement('div'); div.className='room-row';
   div.innerHTML=`<select class="rt-type">${roomTypeOptions(type||ROOM_CATEGORIES[0])}</select>`+
-    `<input class="rt-count" type="number" min="1" value="${count!=null?count:1}">`+
+    `<input class="rt-count" type="number" min="0" value="${count!=null?count:1}">`+
     `<input class="rt-tariff" type="number" min="0" value="${tariff!=null?tariff:0}" placeholder="₹">`+
     `<button class="rt-del" title="Remove" onclick="removeRoomRow(this)">✕</button>`;
   $('roomRows').appendChild(div);
@@ -1219,6 +1302,38 @@ function resetRoomRows(){ $('roomRows').innerHTML=''; addRoomRow(); }
 $('roomRows').addEventListener('input',onFieldEdit);
 $('roomRows').addEventListener('change',onFieldEdit);
 
+/* ---------- additional items / services ---------- */
+function escapeHtml(s){ return String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function getExtras(){
+  return [...document.querySelectorAll('#extraRows .extra-row')].map(r=>{
+    const desc=r.querySelector('.ex-desc').value.trim();
+    const qty=+r.querySelector('.ex-qty').value||0;
+    const rate=+r.querySelector('.ex-rate').value||0;
+    return {desc, qty, rate, amount:round2(qty*rate)};
+  });
+}
+function updateExtraChrome(){
+  const has=document.querySelectorAll('#extraRows .extra-row').length>0;
+  const head=$('extraHead'), hint=$('extraEmptyHint');
+  if(head) head.style.display=has?'':'none';
+  if(hint) hint.style.display=has?'none':'';
+}
+function addExtraRow(desc,qty,rate){
+  const div=document.createElement('div'); div.className='extra-row';
+  div.innerHTML=`<input class="ex-desc" type="text" placeholder="e.g. Food plate / Projector" value="${escapeHtml(desc)}">`+
+    `<input class="ex-qty" type="number" min="0" step="1" value="${qty!=null?qty:1}">`+
+    `<input class="ex-rate" type="number" min="0" value="${rate!=null?rate:0}" placeholder="₹">`+
+    `<button class="rt-del" title="Remove" onclick="removeExtraRow(this)">✕</button>`;
+  $('extraRows').appendChild(div);
+  updateExtraChrome(); clearInvalid(); setSaved(false); render();
+}
+function removeExtraRow(btn){
+  btn.closest('.extra-row').remove();
+  updateExtraChrome(); setSaved(false); render();
+}
+$('extraRows').addEventListener('input',onFieldEdit);
+$('extraRows').addEventListener('change',onFieldEdit);
+
 /* ---------- travel agent toggle ---------- */
 $('agentOpt').addEventListener('change',()=>{
   $('agentFields').style.display=$('agentOpt').checked?'':'none';
@@ -1241,6 +1356,7 @@ function collectInvoice(){
     room_rate: rooms.length===1?rooms[0].tariff:null, room_charge:c.roomCharge,
     meal_plan_opted:c.mealOn, meal_plan_type:c.mealOn?c.mealType:"", meal_charge:c.mealCharge,
     extra_persons:c.exP, extra_person_rate:c.exR, extra_charge:c.exCharge,
+    extra_items: c.extras.filter(e=>e.desc || e.amount>0), extra_items_charge: c.extraCharge,
     discount_type:c.discType, discount_value:c.discVal, discount_amount:c.disc,
     subtotal:c.sub,
     net_amount:g.net, gst_exclusive:g.exclusive, gst_rate:g.rate, taxable_value:g.taxable, gst_amount:g.gst,
@@ -1254,7 +1370,6 @@ function collectInvoice(){
 /* ---------- required-field validation ---------- */
 const REQUIRED=[
   {id:'gName',  label:'Guest name',                 test:v=>!!v.trim()},
-  {id:'gPhone', label:'Mobile number (10 digits)',  test:v=>/^\d{10}$/.test(v)},
   {id:'cin',    label:'Check-in date',               test:v=>!!v},
   {id:'cout',   label:'Check-out date',              test:v=>!!v},
 ];
@@ -1265,12 +1380,26 @@ function clearInvalid(){
 function validateInvoice(){
   const miss=[];
   REQUIRED.forEach(r=>{ const el=$(r.id); const ok=r.test(el.value); el.classList.toggle('invalid',!ok); if(!ok) miss.push(r.label); });
+  // mobile is optional, but if entered it must be 10 digits
+  const ph=$('gPhone').value.trim();
+  if(ph && !/^\d{10}$/.test(ph)){ miss.push('Mobile number must be 10 digits (or leave it blank)'); $('gPhone').classList.add('invalid'); }
   if($('cin').value && $('cout').value && calcNights()<=0){ miss.push('Check-out must be after check-in'); $('cout').classList.add('invalid'); }
-  // rooms: at least one row with qty and a tariff > 0
+  // rooms: any row with qty must also have a tariff > 0
   const rows=[...document.querySelectorAll('#roomRows .room-row')];
   let roomOk=false;
   rows.forEach(r=>{ const cnt=+r.querySelector('.rt-count').value||0, tf=+r.querySelector('.rt-tariff').value||0; const bad=(cnt>0&&tf<=0); r.querySelector('.rt-tariff').classList.toggle('invalid',bad); if(cnt>0&&tf>0) roomOk=true; });
-  if(!roomOk) miss.push('At least one room with quantity and a tariff');
+  // additional items: each line needs both a description and an amount > 0
+  const exRows=[...document.querySelectorAll('#extraRows .extra-row')];
+  let extraOk=false;
+  exRows.forEach(r=>{
+    const d=r.querySelector('.ex-desc'), q=r.querySelector('.ex-qty'), rt=r.querySelector('.ex-rate');
+    const desc=d.value.trim(), amt=(+q.value||0)*(+rt.value||0);
+    const bad=(!!desc && amt<=0) || (!desc && amt>0);
+    d.classList.toggle('invalid', bad && !desc);
+    rt.classList.toggle('invalid', bad && amt<=0);
+    if(desc && amt>0) extraOk=true;
+  });
+  if(!roomOk && !extraOk) miss.push('Add at least one room (with a tariff) or one item/service (with an amount)');
   // travel agent details when toggled on
   if($('agentOpt').checked){
     if(!$('agentName').value.trim()){ miss.push('Travel agent name'); $('agentName').classList.add('invalid'); }
@@ -1335,6 +1464,9 @@ async function reloadInvoice(id){
     const rms = (Array.isArray(i.rooms)&&i.rooms.length) ? i.rooms : [{type:i.room_category||ROOM_CATEGORIES[0],count:i.num_rooms||1,tariff:i.room_rate||0}];
     rms.forEach(r=>addRoomRow(r.type,r.count,r.tariff));
     updateRoomDelete();
+    $('extraRows').innerHTML='';
+    (Array.isArray(i.extra_items)?i.extra_items:[]).forEach(e=>addExtraRow(e.desc,e.qty,e.rate));
+    updateExtraChrome();
     $('agentOpt').checked=!!i.travel_agent;
     $('agentFields').style.display=i.travel_agent?'':'none';
     $('agentName').value=i.agent_name||''; $('agentPhone').value=i.agent_phone||'';
@@ -1358,6 +1490,7 @@ function resetForm(){
   ['gName','gPhone','cin','cout'].forEach(id=>$(id).value='');
   $('people').value=2;
   resetRoomRows();
+  $('extraRows').innerHTML=''; updateExtraChrome();
   $('agentOpt').checked=false;$('agentFields').style.display='none';$('agentName').value='';$('agentPhone').value='';
   $('mealOpt').checked=false;$('mealTypeWrap').style.display='none';$('mealChargeWrap').style.display='none';$('mealCharge').value=0;
   $('exPersons').value=0;$('exRate').value=0;$('discVal').value=0;$('advance').value=0;
@@ -1458,7 +1591,11 @@ function sendWhatsApp(){
   const greet = agentOn ? ($('agentName').value||'Travel Partner') : ($('gName').value||'Guest');
   const roomLines = c.roomRows.filter(r=>r.count>0)
     .map(r=>`• ${r.type} × ${r.count} @ ${rupee(r.tariff)}/night`).join('\n');
+  const extraLines = c.extras.filter(e=>e.desc||e.amount>0)
+    .map(e=>`• ${e.desc||'Item'}${(e.qty||1)>1?` × ${e.qty}`:''} — ${rupee(e.amount)}`).join('\n');
   const guestLine = agentOn ? `\n*Guest:* ${$('gName').value||'-'}` : '';
+  const roomsBlock = roomLines ? `*Rooms:*\n${roomLines}\n` : '';
+  const itemsBlock = extraLines ? `*Items / Services:*\n${extraLines}\n` : '';
   const msg=
 `*${CONFIG.business_name||''} — ${CONFIG.tagline||''}*
 
@@ -1469,9 +1606,7 @@ ${guestLine}
 *Check-in:* ${fmtDate($('cin').value)}
 *Check-out:* ${fmtDate($('cout').value)}
 *Nights:* ${c.nights}
-*Rooms:*
-${roomLines||'-'}
-
+${roomsBlock}${itemsBlock}
 *Taxable Value:* ${rupee(g.taxable)}
 *GST @ ${g.rate}%:* ${rupee(g.gst)}
 *Grand Total:* ${rupee(g.final)}
@@ -1495,12 +1630,14 @@ document.querySelectorAll('input,select').forEach(el=>{
 /* ---------- init ---------- */
 document.body.dataset.mtab='details';
 addRoomRow();   // start with one room line
+updateExtraChrome();
 applyTheme((function(){try{return localStorage.getItem('vp_theme')||'light'}catch(e){return 'light'}})());
 $('invDate').value=todayIST();
 $('connPill').textContent="…";
 restoreSession();
-// allow Enter key to submit the visible auth form
+// allow Enter key to submit the visible auth form; ESC closes the menu
 document.addEventListener('keydown',e=>{
+  if(e.key==='Escape'){ closeMenu(); }
   if(e.key==='Enter' && $('authwrap').classList.contains('show')){
     if($('signupForm').style.display!=='none') doSignup(); else doLogin();
   }
