@@ -158,6 +158,21 @@ body.dark .save-error{color:#ffb4ad}
 .save-error.show{display:block}
 .save-error b{display:block;margin-bottom:5px}
 .save-error ul{margin:0;padding-left:18px;line-height:1.6}
+/* computed-vs-entered total mismatch */
+.mismatch{margin-top:7px;font-size:12px;line-height:1.5;background:rgba(255,170,90,.14);border:1px solid rgba(255,170,90,.45);
+  color:#9a5b00;border-radius:9px;padding:8px 11px;text-transform:none;letter-spacing:0}
+body.dark .mismatch{color:#ffd2a8}
+.mismatch b{color:inherit}
+.mismatch .fix{display:inline-block;margin-top:5px;color:var(--gold);cursor:pointer;text-decoration:underline;font-weight:600}
+/* void / cancel */
+.btn.danger-btn{background:rgba(224,89,79,.12);border:1px solid rgba(224,89,79,.5);color:#c0392b;font-weight:600}
+body.dark .btn.danger-btn{color:#ffb4ad}
+.btn.danger-btn:hover{background:rgba(224,89,79,.2)}
+.void-stamp{position:absolute;top:44%;left:50%;transform:translate(-50%,-50%) rotate(-16deg);z-index:5;pointer-events:none;
+  font-family:'Playfair Display',serif;font-weight:700;font-size:78px;letter-spacing:8px;color:rgba(224,89,79,.34);
+  border:6px solid rgba(224,89,79,.34);border-radius:14px;padding:8px 30px;white-space:nowrap}
+.void-tag{display:inline-block;font-size:10.5px;font-weight:700;letter-spacing:.6px;color:#fff;background:#c0392b;
+  border-radius:5px;padding:2px 7px;margin-left:6px;vertical-align:middle}
 .room-head{display:grid;grid-template-columns:1fr 50px 90px 26px;gap:6px;font-size:9.5px;text-transform:uppercase;letter-spacing:.4px;color:var(--app-muted);margin-bottom:5px;padding:0 2px}
 .room-row{display:grid;grid-template-columns:1fr 50px 90px 26px;gap:6px;margin-bottom:6px;align-items:center}
 .room-row select,.room-row input{padding:8px 8px;font-size:13px}
@@ -483,7 +498,9 @@ table.items tbody tr:nth-child(even){background:#fafbfc}
     <div class="card">
       <h3>Payment</h3>
       <div class="grid">
-        <div class="field full"><label>Total Amount <span class="hint">(auto — editable)</span></label><input type="number" id="grandTotal" min="0" value="0"></div>
+        <div class="field full"><label>Total Amount <span class="hint">(auto — editable)</span></label><input type="number" id="grandTotal" min="0" value="0">
+          <div class="mismatch" id="totalMismatch" style="display:none"></div>
+        </div>
         <div class="field full" style="margin-bottom:2px">
           <label class="switch"><input type="checkbox" id="gstAdd"><span class="track"></span><span>Apply 5% GST on top of total</span></label>
           <span class="hint">Ticked → 5% is added on top. Unticked → the total above is treated as GST-inclusive (base reduces automatically).</span>
@@ -519,10 +536,12 @@ table.items tbody tr:nth-child(even){background:#fafbfc}
       <button class="btn act" onclick="chooseSize(doPDF)">⬇ PDF</button>
       <button class="btn act" onclick="doJPG()">⬇ JPG</button>
       <button class="btn wa act" onclick="sendWhatsApp()">WhatsApp</button>
+      <button class="btn danger-btn" id="voidBtn" onclick="voidCurrent()" style="display:none">🚫 Void</button>
     </div>
 
     <div id="invoice">
       <div class="watermark"><span>VANTARA</span></div>
+      <div class="void-stamp" id="ivVoidStamp" style="display:none">CANCELLED</div>
       <div class="inv-pad">
         <div class="inv-top">
           <div class="inv-brand">
@@ -764,6 +783,8 @@ const rupee = n => "₹"+fmt(n);
 const round2 = n => Math.round((Number(n)||0)*100)/100;
 const todayIST = () => new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Kolkata',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
 let invoiceSaved = false;   // outputs (print/pdf/jpg/whatsapp) stay locked until the invoice is saved
+let LOADED_INVOICE_ID = null;  // id of the currently loaded/saved invoice (for void)
+let LOADED_VOIDED = false;     // whether the loaded invoice is voided/cancelled
 const isMobile = () => window.matchMedia('(max-width:980px)').matches;
 function setMTab(t){
   document.body.dataset.mtab=t;
@@ -1108,7 +1129,7 @@ function compute(){
   // rooms summary line under the table
   const sum=$('roomsSummary');
   if(sum) sum.textContent = totalRooms? (totalRooms+' room(s) · '+nights+' night(s)') : '';
-  return {nights,roomRows,totalRooms,roomCharge,mealOn,mealType:$('mealType').value,mealCharge,exP,exR,exCharge,extras,extraCharge,sub,disc,
+  return {nights,roomRows,totalRooms,roomCharge,mealOn,mealType:$('mealType').value,mealCharge,exP,exR,exCharge,extras,extraCharge,sub,disc,computedGrand:Math.round(computedGrand),
           discType:$('discType').value,discVal:dv};
 }
 
@@ -1117,6 +1138,19 @@ function render(){
   const g=gstCalc();
   const adv=+$('advance').value||0;
   const bal=g.final-adv;$('balance').value=Math.round(bal);
+
+  // reconcile: does the (editable) total agree with the line items?
+  const enteredTotal=Math.round(+$('grandTotal').value||0);
+  const mm=$('totalMismatch');
+  if(mm){
+    const diff=enteredTotal-c.computedGrand;
+    if(Math.abs(diff)>=1){
+      const locked=$('grandTotal').disabled;
+      mm.innerHTML='⚠ Entered total <b>'+rupee(enteredTotal)+'</b> doesn\u2019t match the line items <b>'+rupee(c.computedGrand)+'</b> ('+(diff>0?'+':'\u2212')+rupee(Math.abs(diff))+').'+
+        (locked?'':' <span class="fix" onclick="resetTotalToComputed()">Reset to line items</span>');
+      mm.style.display='';
+    } else mm.style.display='none';
+  }
 
   // header / business
   $('ivName').textContent = CONFIG.business_name||"—";
@@ -1425,6 +1459,7 @@ async function saveInvoice(){
   try{
     const d=await api('saveInvoice',{invoice:inv, ...hotelParam()});
     if(d&&d.invoice&&d.invoice.invoice_number){$('invNo').value=d.invoice.invoice_number;render();}
+    LOADED_INVOICE_ID = (d&&d.invoice&&d.invoice.id) || null; LOADED_VOIDED=false; updateVoidUI();
     setSaved(true); setFormLocked(true);
     if(isMobile()) setMTab('invoice');
     showSaved();
@@ -1449,7 +1484,7 @@ async function loadPastInvoices(){
     const d=await api('listInvoices',{query:$('pastSearch').value||"",limit:40, ...hotelParam()});
     if(!d.invoices||!d.invoices.length){list.innerHTML="<p>No invoices found.</p>";return}
     list.innerHTML=d.invoices.map(i=>`<div class="item" onclick="reloadInvoice('${i.id}')">
-      <div><b>${i.invoice_number}</b><small>${i.guest_name||''} · ${i.guest_phone||''} · ${fmtDate(i.invoice_date)}</small></div>
+      <div><b>${i.invoice_number}</b>${i.voided?'<span class="void-tag">VOID</span>':''}<small>${i.guest_name||''} · ${i.guest_phone||''} · ${fmtDate(i.invoice_date)}</small></div>
       <div class="amt">${rupee(i.total_amount)}</div></div>`).join("");
   }catch(e){list.innerHTML="<p style='color:#ffb4ad'>Error: "+niceErr(e.message)+"</p>"}
 }
@@ -1479,9 +1514,10 @@ async function reloadInvoice(id){
     $('gstAdd').checked=!!i.gst_exclusive;
     lastComputedTotal=-1;$('grandTotal').value=(i.net_amount!=null?i.net_amount:i.total_amount);
     $('advance').value=i.advance_amount;$('payMode').value=i.payment_mode||'Cash';
+    LOADED_INVOICE_ID=i.id; LOADED_VOIDED=!!i.voided; updateVoidUI();
     hide('pastOverlay');render();setSaved(true);setFormLocked(true);
     if(isMobile()) setMTab('invoice');
-    toast("Loaded "+i.invoice_number+" (read-only)");
+    toast("Loaded "+i.invoice_number+(i.voided?" (VOIDED)":" (read-only)"));
   }catch(e){toast("Could not load: "+niceErr(e.message),true)}
 }
 
@@ -1491,6 +1527,7 @@ function resetForm(){
   $('people').value=2;
   resetRoomRows();
   $('extraRows').innerHTML=''; updateExtraChrome();
+  LOADED_INVOICE_ID=null; LOADED_VOIDED=false; updateVoidUI();
   $('agentOpt').checked=false;$('agentFields').style.display='none';$('agentName').value='';$('agentPhone').value='';
   $('mealOpt').checked=false;$('mealTypeWrap').style.display='none';$('mealChargeWrap').style.display='none';$('mealCharge').value=0;
   $('exPersons').value=0;$('exRate').value=0;$('discVal').value=0;$('advance').value=0;
@@ -1622,6 +1659,41 @@ Thank you! 🙏`;
 
 /* ---------- live updates on every input ---------- */
 function onFieldEdit(){ clearInvalid(); setSaved(false); render(); }
+function resetTotalToComputed(){
+  const c=compute();
+  $('grandTotal').value=c.computedGrand;
+  lastComputedTotal=c.computedGrand;
+  onFieldEdit();
+  toast("Total reset to line items");
+}
+
+/* ---------- void / cancel a saved invoice (super admin) ---------- */
+function updateVoidUI(){
+  const isSuper = SESSION.role==='super_admin';
+  const btn=$('voidBtn');
+  if(btn){
+    btn.style.display = (isSuper && !!LOADED_INVOICE_ID) ? '' : 'none';
+    btn.textContent = LOADED_VOIDED ? '↩ Un-void' : '🚫 Void';
+  }
+  const stamp=$('ivVoidStamp'); if(stamp) stamp.style.display = LOADED_VOIDED ? '' : 'none';
+}
+async function voidCurrent(){
+  if(SESSION.role!=='super_admin'){ toast("Only super admin can void invoices",true); return; }
+  if(!LOADED_INVOICE_ID){ toast("Open a saved invoice first",true); return; }
+  const voiding = !LOADED_VOIDED;
+  let reason='';
+  if(voiding){
+    reason = prompt("Void invoice "+($('invNo').value||'')+" ?\nThis keeps the record but marks it CANCELLED.\n\nReason (optional):","");
+    if(reason===null) return;              // user cancelled the prompt
+  } else if(!confirm("Un-void "+($('invNo').value||'')+" ? It becomes active again.")) return;
+  toast(voiding?"Voiding…":"Restoring…");
+  try{
+    const d=await api('voidInvoice',{id:LOADED_INVOICE_ID, reason:reason||'', void:voiding, ...hotelParam()});
+    LOADED_VOIDED = (d&&d.invoice) ? !!d.invoice.voided : voiding;
+    updateVoidUI();
+    toast(voiding?"Invoice voided ✓":"Invoice restored ✓");
+  }catch(e){ toast("Failed: "+niceErr(e.message),true); }
+}
 document.querySelectorAll('input,select').forEach(el=>{
   if(['gName','gPhone'].includes(el.id))return; // handled separately
   el.addEventListener('input',onFieldEdit);el.addEventListener('change',onFieldEdit);
