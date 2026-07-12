@@ -1563,31 +1563,35 @@ async function captureCanvas(scale=2.5){
 }
 
 /* ---------- PDF (fills page width; paginates if taller than one page) ---------- */
+async function buildInvoicePdf(size){
+  const canvas=await captureCanvas(2.5);
+  const {jsPDF}=window.jspdf;
+  const pdf=new jsPDF({orientation:'portrait',unit:'mm',format:size});
+  const pw=pdf.internal.pageSize.getWidth(), ph=pdf.internal.pageSize.getHeight();
+  const m=6, imgW=pw-2*m, availH=ph-2*m;
+  const pxPerMm=canvas.width/imgW;
+  const fullHmm=canvas.height/pxPerMm;
+  if(fullHmm<=availH+0.5){
+    pdf.addImage(canvas.toDataURL('image/jpeg',0.95),'JPEG',m,m,imgW,fullHmm);
+  }else{
+    const pagePxH=Math.floor(availH*pxPerMm);
+    let y=0,page=0;
+    while(y<canvas.height){
+      const sliceH=Math.min(pagePxH,canvas.height-y);
+      const c=document.createElement('canvas');c.width=canvas.width;c.height=sliceH;
+      const cx=c.getContext('2d');cx.fillStyle='#fff';cx.fillRect(0,0,c.width,sliceH);
+      cx.drawImage(canvas,0,y,canvas.width,sliceH,0,0,canvas.width,sliceH);
+      if(page>0)pdf.addPage(size,'portrait');
+      pdf.addImage(c.toDataURL('image/jpeg',0.95),'JPEG',m,m,imgW,sliceH/pxPerMm);
+      y+=sliceH;page++;
+    }
+  }
+  return pdf;
+}
 async function doPDF(size){
   try{
     toast("Building PDF…");
-    const canvas=await captureCanvas(2.5);
-    const {jsPDF}=window.jspdf;
-    const pdf=new jsPDF({orientation:'portrait',unit:'mm',format:size});
-    const pw=pdf.internal.pageSize.getWidth(), ph=pdf.internal.pageSize.getHeight();
-    const m=6, imgW=pw-2*m, availH=ph-2*m;
-    const pxPerMm=canvas.width/imgW;
-    const fullHmm=canvas.height/pxPerMm;
-    if(fullHmm<=availH+0.5){
-      pdf.addImage(canvas.toDataURL('image/jpeg',0.95),'JPEG',m,m,imgW,fullHmm);
-    }else{
-      const pagePxH=Math.floor(availH*pxPerMm);
-      let y=0,page=0;
-      while(y<canvas.height){
-        const sliceH=Math.min(pagePxH,canvas.height-y);
-        const c=document.createElement('canvas');c.width=canvas.width;c.height=sliceH;
-        const cx=c.getContext('2d');cx.fillStyle='#fff';cx.fillRect(0,0,c.width,sliceH);
-        cx.drawImage(canvas,0,y,canvas.width,sliceH,0,0,canvas.width,sliceH);
-        if(page>0)pdf.addPage(size,'portrait');
-        pdf.addImage(c.toDataURL('image/jpeg',0.95),'JPEG',m,m,imgW,sliceH/pxPerMm);
-        y+=sliceH;page++;
-      }
-    }
+    const pdf=await buildInvoicePdf(size);
     pdf.save(($('invNo').value||'invoice')+'.pdf');
     toast("PDF downloaded ✓");
   }catch(e){toast("PDF failed: "+e.message,true)}
@@ -1617,44 +1621,72 @@ function doPrint(size){
 }
 
 /* ---------- WhatsApp ---------- */
-function sendWhatsApp(){
+function buildWhatsAppText(){
   const agentOn=$('agentOpt').checked;
-  const recipientRaw = agentOn ? ($('agentPhone').value||'') : ($('gPhone').value||'');
-  let phone=recipientRaw.replace(/\D/g,'');
-  if(phone.length===10)phone='91'+phone;
-  else if(phone.length===11&&phone.startsWith('0'))phone='91'+phone.slice(1);
-  const g=gstCalc(); const adv=+$('advance').value||0;
-  const c=compute();
+  const g=gstCalc(); const adv=+$('advance').value||0; const c=compute();
+  const bal=g.final-adv;
   const greet = agentOn ? ($('agentName').value||'Travel Partner') : ($('gName').value||'Guest');
   const roomLines = c.roomRows.filter(r=>r.count>0)
-    .map(r=>`• ${r.type} × ${r.count} @ ${rupee(r.tariff)}/night`).join('\n');
+    .map(r=>`• ${r.type} × ${r.count} @ ${rupee(r.tariff)}/night`);
   const extraLines = c.extras.filter(e=>e.desc||e.amount>0)
-    .map(e=>`• ${e.desc||'Item'}${(e.qty||1)>1?` × ${e.qty}`:''} — ${rupee(e.amount)}`).join('\n');
-  const guestLine = agentOn ? `\n*Guest:* ${$('gName').value||'-'}` : '';
-  const roomsBlock = roomLines ? `*Rooms:*\n${roomLines}\n` : '';
-  const itemsBlock = extraLines ? `*Items / Services:*\n${extraLines}\n` : '';
-  const msg=
-`*${CONFIG.business_name||''} — ${CONFIG.tagline||''}*
+    .map(e=>`• ${e.desc||'Item'}${(e.qty||1)>1?` × ${e.qty}`:''} — ${rupee(e.amount)}`);
 
-Dear ${greet}, here is the invoice summary:
-${guestLine}
-*Invoice No:* ${$('invNo').value}
-*Date:* ${fmtDate($('invDate').value)}
-*Check-in:* ${fmtDate($('cin').value)}
-*Check-out:* ${fmtDate($('cout').value)}
-*Nights:* ${c.nights}
-${roomsBlock}${itemsBlock}
-*Taxable Value:* ${rupee(g.taxable)}
-*GST @ ${g.rate}%:* ${rupee(g.gst)}
-*Grand Total:* ${rupee(g.final)}
-*Advance:* ${rupee(adv)}
-*Balance Due:* ${rupee(g.final-adv)}
-
-${CONFIG.upi_id?('Pay via UPI: '+CONFIG.upi_id+'\n\n'):''}Please find the detailed invoice attached.
-Thank you! 🙏`;
-  const url=(phone?('https://wa.me/'+phone):'https://wa.me/')+'?text='+encodeURIComponent(msg);
-  window.open(url,'_blank');
-  toast(agentOn?"WhatsApp opened to the travel agent — attach the invoice":"WhatsApp opened — attach the downloaded PDF/JPG");
+  const L=[];
+  const title=[CONFIG.business_name,CONFIG.tagline].filter(Boolean).join(' — ');
+  if(title) L.push(`*${title}*`,'');
+  L.push(`Dear ${greet}, here is your invoice summary:`);
+  if(agentOn) L.push(`*Guest:* ${$('gName').value||'-'}`);
+  L.push('',
+    `*Invoice No:* ${$('invNo').value}`,
+    `*Date:* ${fmtDate($('invDate').value)}`,
+    `*Check-in:* ${fmtDate($('cin').value)}`,
+    `*Check-out:* ${fmtDate($('cout').value)}`,
+    `*Nights:* ${c.nights}`);
+  if(roomLines.length) L.push('','*Rooms:*',...roomLines);
+  if(extraLines.length) L.push('','*Items / Services:*',...extraLines);
+  L.push('',
+    `*Taxable Value:* ${rupee(g.taxable)}`,
+    `*GST @ ${g.rate}%:* ${rupee(g.gst)}`,
+    `*Grand Total:* ${rupee(g.final)}`,
+    `*Advance:* ${rupee(adv)}`,
+    `*Balance Due:* ${rupee(bal)}${bal<=0?' (Paid in full)':''}`);
+  if(LOADED_VOIDED) L.push('','*⚠ THIS INVOICE HAS BEEN CANCELLED / VOIDED*');
+  L.push('');
+  if(CONFIG.upi_id) L.push(`Pay via UPI: ${CONFIG.upi_id}`);
+  L.push('Please find the detailed invoice attached.','Thank you! 🙏');
+  return L.join('\n');
+}
+function waRecipient(){
+  const agentOn=$('agentOpt').checked;
+  let phone=((agentOn?$('agentPhone').value:$('gPhone').value)||'').replace(/\D/g,'');
+  if(phone.length===10)phone='91'+phone;
+  else if(phone.length===11&&phone.startsWith('0'))phone='91'+phone.slice(1);
+  return phone;
+}
+async function sendWhatsApp(){
+  const msg=buildWhatsAppText();
+  const agentOn=$('agentOpt').checked;
+  // On phones: share the actual PDF + caption via the native share sheet (one tap → WhatsApp)
+  try{
+    if(navigator.canShare){
+      toast("Preparing invoice…");
+      const pdf=await buildInvoicePdf('a4');
+      const blob=pdf.output('blob');
+      const file=new File([blob],(($('invNo').value||'invoice')+'.pdf'),{type:'application/pdf'});
+      if(navigator.canShare({files:[file]})){
+        await navigator.share({files:[file], text:msg, title:'Invoice '+($('invNo').value||'')});
+        toast("Choose WhatsApp in the share sheet ✓");
+        return;
+      }
+    }
+  }catch(e){
+    if(e && e.name==='AbortError') return; // user closed the share sheet
+    /* otherwise fall through to the text-only link */
+  }
+  // Desktop / unsupported: open the chat with pre-filled text (PDF attached manually)
+  const phone=waRecipient();
+  window.open((phone?('https://wa.me/'+phone):'https://wa.me/')+'?text='+encodeURIComponent(msg),'_blank');
+  toast(agentOn?"WhatsApp opened to the agent — attach the PDF/JPG":"WhatsApp opened — attach the downloaded PDF/JPG");
 }
 
 /* ---------- live updates on every input ---------- */
