@@ -561,6 +561,40 @@ body.dark .toast.err{color:#ffb4ad}
   .mode-row .mv{width:78px;font-size:12px}
 }
 
+/* ---------- v3: doc-type switch, payment ledger, refresh ---------- */
+.segtabs{display:flex;background:var(--app-surface-2);border:1px solid var(--app-border);border-radius:13px;
+  padding:4px;margin-bottom:14px;gap:4px}
+.segtab{flex:1;padding:12px 8px;border:none;background:transparent;border-radius:10px;font-family:'Jost',sans-serif;
+  font-size:14px;font-weight:600;color:var(--app-muted);cursor:pointer;transition:.16s;letter-spacing:.2px}
+.segtab.on{background:linear-gradient(135deg,var(--gold),var(--gold-2));color:var(--navy);box-shadow:0 5px 16px rgba(201,162,75,.32)}
+.segtabs.slim{margin-bottom:10px}
+.segtabs.slim .segtab{padding:10px 8px;font-size:13.5px}
+@keyframes spin{to{transform:rotate(360deg)}}
+.spinning{display:inline-block;animation:spin .7s linear infinite}
+.payhist{margin-top:16px;border:1px solid var(--line);border-radius:9px;overflow:hidden}
+.payhist .hh{font-size:10.5px;letter-spacing:1.4px;text-transform:uppercase;color:var(--gold);font-weight:600;
+  padding:9px 14px;background:var(--soft);border-bottom:1px solid var(--line)}
+.payhist table{width:100%;border-collapse:collapse;font-size:12.5px}
+.payhist td{padding:8px 14px;border-bottom:1px solid var(--line);color:var(--ink)}
+.payhist tr:last-child td{border-bottom:none}
+.payhist td.r{text-align:right;font-variant-numeric:tabular-nums}
+.payhist td.k{color:var(--muted);font-size:10px;letter-spacing:.9px;text-transform:uppercase}
+.payhist tr.due td{background:#fffdf7;font-weight:700;color:var(--navy);font-size:13.5px}
+.payhist .sub{color:var(--muted);font-size:11px;margin-top:2px;line-height:1.4}
+.paysum{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:14px}
+.paysum div{background:var(--app-surface-2);border:1px solid var(--app-border);border-radius:10px;padding:10px;text-align:center}
+.paysum .k{font-size:10px;letter-spacing:.9px;text-transform:uppercase;color:var(--app-muted)}
+.paysum .v{font-family:'Playfair Display',serif;font-size:16px;font-weight:600;margin-top:3px}
+.pmlist{max-height:34vh;overflow:auto;border:1px solid var(--app-border);border-radius:11px;margin:14px 0 4px}
+.pmrow{display:flex;align-items:center;gap:10px;padding:11px 12px;border-bottom:1px solid var(--app-border)}
+.pmrow:last-child{border-bottom:none}
+.pmrow .pd{flex:1;min-width:0}
+.pmrow .pd b{font-size:13.5px}
+.pmrow .pd small{display:block;color:var(--app-muted);font-size:11.5px;margin-top:2px;line-height:1.4}
+.pmrow .pa{font-weight:600;font-variant-numeric:tabular-nums;color:var(--ok);white-space:nowrap}
+.pmrow .px{background:transparent;border:none;color:var(--app-muted);cursor:pointer;font-size:13px;padding:4px 6px;border-radius:7px}
+.pmrow .px:hover{background:var(--bad-bg);color:var(--bad)}
+
 /* ---------- v2.1 additions ---------- */
 .lockednote{font-size:12.5px;color:var(--app-muted);background:var(--app-surface);border:1px dashed var(--app-border);
   border-radius:10px;padding:10px 13px;max-width:720px;width:100%;text-align:center;line-height:1.55}
@@ -605,6 +639,7 @@ body.dark .statuswarn{color:#ffd2a8}
   <div class="spacer"></div>
   <select id="hotelPicker" class="hsel" style="display:none" onchange="onPickHotel()"></select>
   <span class="who" id="who" style="display:none"></span>
+  <button class="themebtn" id="refreshBtn" onclick="refreshAll()" title="Refresh data"><span id="refreshIcon">⟳</span></button>
   <button class="themebtn" id="themeBtn" onclick="toggleTheme()" title="Toggle light / dark">🌙</button>
   <span class="pill" id="connPill">…</span>
 </div>
@@ -625,26 +660,18 @@ body.dark .statuswarn{color:#ffd2a8}
       <div class="stat tappable" onclick="openPastInvoices('')"><div class="k">Invoices this month</div><div class="v" id="stInvCount">—</div></div>
       <div class="stat gold tappable" onclick="openPastInvoices('')"><div class="k">Billed this month</div><div class="v" id="stBilled">—</div></div>
       <div class="stat bad tappable" onclick="openPastInvoices('pending')"><div class="k">Outstanding</div><div class="v" id="stOutstanding">—</div></div>
-      <div class="stat tappable" onclick="openPastVouchers()"><div class="k">Vouchers this month</div><div class="v" id="stVouchers">—</div></div>
+      <div class="stat tappable" onclick="openPast('voucher')"><div class="k">Vouchers this month</div><div class="v" id="stVouchers">—</div></div>
       <div class="stat tappable" onclick="openStaff()"><div class="k">Staff outstanding</div><div class="v" id="stStaff">—</div></div>
     </div>
 
     <div class="tiles">
-      <button class="tile primary" onclick="newInvoice()">
+      <button class="tile primary" onclick="newDoc('invoice')">
         <div class="ic">＋</div>
-        <div><div class="tt">New Invoice</div><div class="ts">Create a guest bill with rooms, items &amp; GST</div></div>
+        <div><div class="tt">New Document</div><div class="ts">Invoice or Advance Voucher — switch at the top</div></div>
       </button>
-      <button class="tile" onclick="openPastInvoices()">
+      <button class="tile" onclick="openPast('invoice')">
         <div class="ic">📁</div>
-        <div><div class="tt">Past Invoices</div><div class="ts">Search, reprint, edit &amp; mark paid</div></div>
-      </button>
-      <button class="tile" onclick="newVoucher()">
-        <div class="ic">🧾</div>
-        <div><div class="tt">New Advance Voucher</div><div class="ts">Receipt for any advance money received</div></div>
-      </button>
-      <button class="tile" onclick="openPastVouchers()">
-        <div class="ic">🗂</div>
-        <div><div class="tt">Past Advance Vouchers</div><div class="ts">Search, reprint &amp; edit vouchers</div></div>
+        <div><div class="tt">Past Records</div><div class="ts">Search, reprint, edit, record payments</div></div>
       </button>
       <button class="tile" onclick="openStaff()">
         <div class="ic">👤</div>
@@ -678,12 +705,18 @@ body.dark .statuswarn{color:#ffd2a8}
       <button class="btn sm" onclick="discardDraft()">Discard</button>
     </div>
 
+    <div class="segtabs" id="docSeg">
+      <button class="segtab on" data-dt="invoice" onclick="switchDocType('invoice')">🧾 Invoice</button>
+      <button class="segtab" data-dt="voucher" onclick="switchDocType('voucher')">📄 Advance Voucher</button>
+    </div>
+
     <div class="card">
-      <h3>Invoice</h3>
+      <h3 id="docCardTitle">Invoice</h3>
       <div class="grid">
-        <div class="field"><label>Invoice No.</label><input id="invNo" readonly></div>
-        <div class="field"><label>Invoice Date</label><input type="date" id="invDate"></div>
+        <div class="field"><label id="invNoLabel">Invoice No.</label><input id="invNo" readonly></div>
+        <div class="field"><label id="invDateLabel">Invoice Date</label><input type="date" id="invDate"></div>
       </div>
+      <div class="hint" id="docTypeHint" style="margin-top:8px"></div>
     </div>
 
     <div class="card">
@@ -800,9 +833,9 @@ body.dark .statuswarn{color:#ffd2a8}
       <button class="btn act" onclick="doJPG()">⬇ JPG</button>
       <button class="btn wa act" onclick="sendWhatsApp()">WhatsApp</button>
       <button class="btn" id="editInvBtn" onclick="enableInvoiceEdit()" style="display:none">✏ Edit</button>
-      <button class="btn" id="statusInvBtn" onclick="openStatusModal()" style="display:none">✓ Status</button>
+      <button class="btn" id="statusInvBtn" onclick="openPaymentsModal()" style="display:none">₹ Payments</button>
       <button class="btn" id="dupInvBtn" onclick="duplicateInvoice()" style="display:none">⧉ Duplicate</button>
-      <button class="btn danger-btn" id="voidBtn" onclick="askVoid('invoice')" style="display:none">🚫 Void</button>
+      <button class="btn danger-btn" id="voidBtn" onclick="askVoid()" style="display:none">🚫 Void</button>
     </div>
     <div class="lockednote" id="invLockNote" style="display:none"></div>
 
@@ -823,7 +856,7 @@ body.dark .statuswarn{color:#ffd2a8}
         <div class="gold-rule"></div>
 
         <div class="inv-title-row">
-          <div class="inv-title">INVOICE<small>TAX INVOICE</small></div>
+          <div class="inv-title"><span id="ivTitleMain">INVOICE</span><small id="ivTitleSub">TAX INVOICE</small></div>
           <div class="inv-meta">
             <div><span class="k">Invoice No.</span><b id="ivNo">—</b></div>
             <div><span class="k">Date</span><b id="ivDate">—</b></div>
@@ -893,6 +926,11 @@ body.dark .statuswarn{color:#ffd2a8}
           </div>
         </div>
 
+        <div class="payhist" id="ivPayHist" style="display:none">
+          <div class="hh">Payment History</div>
+          <table id="ivPayHistTable"></table>
+        </div>
+
         <div class="sign">
           <div class="box">
             <img id="ivSign" alt="" style="display:none">
@@ -905,7 +943,7 @@ body.dark .statuswarn{color:#ffd2a8}
           <ul id="ivTerms"><li>—</li></ul>
         </div>
       </div>
-      <div class="inv-footer">Thank you for choosing <b id="ivFooterName">—</b> · This is a computer-generated invoice.</div>
+      <div class="inv-footer">Thank you for choosing <b id="ivFooterName">—</b> · <span id="ivFootLine">This is a computer-generated invoice.</span></div>
     </div>
   </div>
  </div>
@@ -916,175 +954,23 @@ body.dark .statuswarn{color:#ffd2a8}
 </section>
 
 <!-- ================================================================
-     ADVANCE VOUCHER BUILDER
-     ================================================================ -->
-<section class="view" id="v-voucher">
- <div class="layout">
-  <div class="form-panel">
-    <div class="card">
-      <h3>Voucher</h3>
-      <div class="grid">
-        <div class="field"><label>Voucher No.</label><input id="vNo" readonly></div>
-        <div class="field"><label>Voucher Date</label><input type="date" id="vDate"></div>
-      </div>
-      <div class="hint" style="margin-top:8px">Advance vouchers use their own numbering (ADV-INV-00001) and are kept completely separate from invoices.</div>
-    </div>
-
-    <div class="card">
-      <h3>Received From</h3>
-      <div class="grid">
-        <div class="field full"><label class="req">Name</label>
-          <input id="vName" placeholder="Guest / agent / company name" autocomplete="off">
-          <div class="suggest" id="vSuggest" style="display:none"></div>
-        </div>
-        <div class="field full"><label>Mobile Number <span class="hint">(optional)</span></label>
-          <input id="vPhone" placeholder="10-digit mobile (optional)" inputmode="numeric" maxlength="10"></div>
-      </div>
-    </div>
-
-    <div class="card">
-      <h3>Amount &amp; Payment</h3>
-      <div class="grid">
-        <div class="field full"><label class="req">Amount Received (₹)</label>
-          <input type="number" id="vAmount" min="0" value="0" inputmode="decimal">
-          <div class="hint" id="vWordsHint" style="margin-top:6px"></div>
-        </div>
-        <div class="field"><label>Mode of Payment</label>
-          <select id="vMode"><option>Cash</option><option>UPI</option><option>Card</option><option>Bank Transfer</option><option>Cheque</option><option>Other</option></select>
-        </div>
-        <div class="field"><label>Reference <span class="hint">(optional)</span></label>
-          <input id="vRef" placeholder="Booking / txn ref" maxlength="80"></div>
-        <div class="field full"><label>Payment Remark <span class="hint">(what the money is for / how it came)</span></label>
-          <input id="vPayRemark" placeholder="e.g. UPI 9876…, advance for 12–14 Aug booking" maxlength="160"></div>
-      </div>
-    </div>
-
-    <div class="card">
-      <h3>Purpose / Notes</h3>
-      <div class="field full"><textarea id="vPurpose" placeholder="Optional — printed on the voucher. e.g. Advance received towards banquet hall booking on 18 Aug."></textarea></div>
-    </div>
-
-    <button class="btn gold block" id="vSaveBtn" onclick="saveVoucher()" style="padding:14px;font-size:15px">💾 Save Voucher</button>
-    <div class="hint" id="vSaveHint" style="text-align:center;margin-top:8px">Save to lock this number — print, download and WhatsApp unlock after saving.</div>
-    <div class="save-error" id="vSaveError"></div>
-  </div>
-
-  <div class="preview-panel">
-    <div class="toolbar">
-      <button class="btn vact" onclick="chooseSize(doPrintV)">🖨 Print</button>
-      <button class="btn vact" onclick="chooseSize(doPDFV)">⬇ PDF</button>
-      <button class="btn vact" onclick="doJPGV()">⬇ JPG</button>
-      <button class="btn wa vact" onclick="sendWhatsAppV()">WhatsApp</button>
-      <button class="btn" id="editVouBtn" onclick="enableVoucherEdit()" style="display:none">✏ Edit</button>
-      <button class="btn danger-btn" id="voidVouBtn" onclick="askVoid('voucher')" style="display:none">🚫 Void</button>
-    </div>
-    <div class="lockednote" id="vouLockNote" style="display:none"></div>
-
-    <div id="voucher" class="doc">
-      <div class="watermark"><span>ADVANCE</span></div>
-      <div class="void-stamp" id="vvVoidStamp" style="display:none">CANCELLED</div>
-      <div class="inv-pad">
-        <div class="inv-top">
-          <div class="inv-brand">
-            <div class="inv-logo placeholder" id="vvLogo">H</div>
-            <div>
-              <div class="inv-name" id="vvName">—</div>
-              <div class="inv-tag" id="vvTag"></div>
-            </div>
-          </div>
-          <div class="inv-contact" id="vvContact"><b>—</b></div>
-        </div>
-        <div class="gold-rule"></div>
-
-        <div class="inv-title-row">
-          <div class="inv-title">ADVANCE<small>MONEY RECEIPT VOUCHER</small></div>
-          <div class="inv-meta">
-            <div><span class="k">Voucher No.</span><b id="vvNo">—</b></div>
-            <div><span class="k">Date</span><b id="vvDate">—</b></div>
-          </div>
-        </div>
-
-        <div class="amt-hero">
-          <div>
-            <div class="lbl">Amount Received</div>
-            <div class="big" id="vvAmount">₹0.00</div>
-          </div>
-          <div class="side">
-            <span class="lbl" style="display:block;margin-bottom:3px">Mode</span>
-            <b id="vvMode">—</b>
-            <div id="vvRefWrap" style="display:none;margin-top:6px"><span class="lbl">Ref:</span> <b id="vvRef"></b></div>
-          </div>
-        </div>
-
-        <div class="words"><span class="lbl">Amount in words</span><span id="vvWords">—</span></div>
-
-        <div class="vrow">
-          <div class="block">
-            <div class="h">Received From</div>
-            <div class="v">
-              <div class="bill-name" id="vvFrom">—</div>
-              <div><span class="lbl">Mobile:</span> <span id="vvPhone">—</span></div>
-            </div>
-          </div>
-          <div class="block">
-            <div class="h">Payment Details</div>
-            <div class="v">
-              <div><span class="lbl">Mode:</span> <span id="vvMode2">—</span></div>
-              <div id="vvRemarkWrap" style="display:none"><span class="lbl">Remark:</span> <span id="vvRemark"></span></div>
-            </div>
-          </div>
-        </div>
-
-        <div class="note-box" id="vvPurposeBox" style="display:none">
-          <div class="h">Purpose / Notes</div>
-          <div class="v" id="vvPurpose"></div>
-        </div>
-
-        <div class="bankbox" id="vvBankBox" style="margin-top:16px">
-          <div class="h">Bank Transfer</div>
-          <div class="v" id="vvBank">—</div>
-        </div>
-
-        <div class="sign">
-          <div class="box">
-            <img id="vvSign" alt="" style="display:none">
-            <div class="line">Received By / Authorised Signatory</div>
-          </div>
-        </div>
-
-        <div class="terms">
-          <div class="h">Note</div>
-          <ul>
-            <li>This voucher acknowledges receipt of the advance amount stated above.</li>
-            <li>It is not a tax invoice. A final invoice will be issued separately.</li>
-            <li>Please retain this voucher for your records.</li>
-          </ul>
-        </div>
-      </div>
-      <div class="inv-footer">Issued by <b id="vvFooterName">—</b> · This is a computer-generated voucher.</div>
-    </div>
-  </div>
- </div>
- <div class="mobar" id="vouMobar">
-   <button class="btn ghost" onclick="setMTab(document.body.dataset.mtab==='details'?'invoice':'details')">👁 Preview</button>
-   <button class="btn gold" onclick="saveVoucher()">💾 Save</button>
- </div>
-</section>
-
-<!-- ================================================================
      PAST INVOICES
      ================================================================ -->
 <section class="view" id="v-pastInv">
   <div class="wrap">
     <div class="pagehead">
-      <div><h2>Past Invoices</h2><div class="ph-sub">Tap a bill to open it. Use Status to mark it paid.</div></div>
+      <div><h2 id="pastTitle">Past Invoices</h2><div class="ph-sub" id="pastSub">Tap a record to open it. Use Payments to record money received.</div></div>
       <div class="headbtns">
         <button class="btn sm" onclick="exportInvoicesCSV()">⬇ CSV</button>
-        <button class="btn gold sm" onclick="newInvoice()">＋ New Invoice</button>
+        <button class="btn gold sm" onclick="newDoc(PAST_TYPE)">＋ New</button>
       </div>
     </div>
+    <div class="segtabs slim" id="pastSeg">
+      <button class="segtab on" data-dt="invoice" onclick="setPastType('invoice')">🧾 Invoices</button>
+      <button class="segtab" data-dt="voucher" onclick="setPastType('voucher')">📄 Advance Vouchers</button>
+    </div>
     <div class="searchbar">
-      <input id="pastSearch" placeholder="Search guest, phone or invoice no…" oninput="debouncedPastInv()">
+      <input id="pastSearch" placeholder="Search name, phone or document no…" oninput="debouncedPastInv()">
       <div class="filters">
         <button class="fchip on" data-st="" onclick="setInvFilter(this,'')">All</button>
         <button class="fchip" data-st="pending" onclick="setInvFilter(this,'pending')">Pending</button>
@@ -1093,25 +979,6 @@ body.dark .statuswarn{color:#ffd2a8}
       </div>
     </div>
     <div class="rows" id="pastList"></div>
-  </div>
-</section>
-
-<!-- ================================================================
-     PAST VOUCHERS
-     ================================================================ -->
-<section class="view" id="v-pastVou">
-  <div class="wrap">
-    <div class="pagehead">
-      <div><h2>Past Advance Vouchers</h2><div class="ph-sub">Tap a voucher to open, reprint or edit it.</div></div>
-      <div class="headbtns">
-        <button class="btn sm" onclick="exportVouchersCSV()">⬇ CSV</button>
-        <button class="btn gold sm" onclick="newVoucher()">＋ New Voucher</button>
-      </div>
-    </div>
-    <div class="searchbar">
-      <input id="vouSearch" placeholder="Search name, phone or voucher no…" oninput="debouncedPastVou()">
-    </div>
-    <div class="rows" id="vouList"></div>
   </div>
 </section>
 
@@ -1256,10 +1123,10 @@ body.dark .statuswarn{color:#ffd2a8}
   <nav class="drawer-nav">
     <button class="drawer-item" onclick="closeMenu();go('home')"><span>⌂</span> Home</button>
     <div class="drawer-sep"></div>
-    <button class="drawer-item" onclick="closeMenu();newInvoice()"><span>＋</span> New Invoice</button>
-    <button class="drawer-item" onclick="closeMenu();openPastInvoices()"><span>📁</span> Past Invoices</button>
-    <button class="drawer-item" onclick="closeMenu();newVoucher()"><span>🧾</span> New Advance Voucher</button>
-    <button class="drawer-item" onclick="closeMenu();openPastVouchers()"><span>🗂</span> Past Advance Vouchers</button>
+    <button class="drawer-item" onclick="closeMenu();newDoc('invoice')"><span>＋</span> New Invoice</button>
+    <button class="drawer-item" onclick="closeMenu();newDoc('voucher')"><span>🧾</span> New Advance Voucher</button>
+    <button class="drawer-item" onclick="closeMenu();openPast('invoice')"><span>📁</span> Past Invoices</button>
+    <button class="drawer-item" onclick="closeMenu();openPast('voucher')"><span>🗂</span> Past Advance Vouchers</button>
     <button class="drawer-item" onclick="closeMenu();openStaff()"><span>👤</span> Staff Advances</button>
     <a class="drawer-item" id="adminLink" href="https://vanta-invoice-pro.lovable.app/admin" target="_blank" rel="noopener" style="display:none"><span>⚙</span> Admin Portal</a>
     <div class="drawer-sep"></div>
@@ -1289,32 +1156,36 @@ body.dark .statuswarn{color:#ffd2a8}
     <h2 id="savedTitle">Saved ✓</h2>
     <p id="savedMsg">Ready. Print it, save a copy, or start the next one.</p>
     <div class="size-opts" style="grid-template-columns:1fr 1fr 1fr">
-      <div class="size-opt" onclick="hide('savedOverlay');chooseSize(SAVED_CTX==='voucher'?doPrintV:doPrint)"><b>🖨</b><small>Print</small></div>
-      <div class="size-opt" onclick="hide('savedOverlay');chooseSize(SAVED_CTX==='voucher'?doPDFV:doPDF)"><b>PDF</b><small>A5 / A4</small></div>
-      <div class="size-opt" onclick="hide('savedOverlay');(SAVED_CTX==='voucher'?doJPGV:doJPG)()"><b>JPG</b><small>image</small></div>
+      <div class="size-opt" onclick="hide('savedOverlay');chooseSize(doPrint)"><b>🖨</b><small>Print</small></div>
+      <div class="size-opt" onclick="hide('savedOverlay');chooseSize(doPDF)"><b>PDF</b><small>A5 / A4</small></div>
+      <div class="size-opt" onclick="hide('savedOverlay');doJPG()"><b>JPG</b><small>image</small></div>
     </div>
     <div class="close">
       <button class="x" onclick="hide('savedOverlay')">Stay here</button>
-      <button class="btn gold" onclick="hide('savedOverlay');SAVED_CTX==='voucher'?newVoucher():newInvoice()">＋ Next</button>
+      <button class="btn gold" onclick="hide('savedOverlay');newDoc(DOC_TYPE)">＋ Next</button>
     </div>
   </div>
 </div>
 
-<div class="overlay" id="statusOverlay">
+<div class="overlay" id="payOverlay">
   <div class="modal">
-    <h2>Payment Status</h2>
-    <p id="stModalSub">Mark where this bill stands. The amount received is stored with it.</p>
-    <div class="statgrid">
-      <div class="statopt pending" id="stOptPending" onclick="pickStatus('pending')">⏳ Pending</div>
-      <div class="statopt partial" id="stOptPartial" onclick="pickStatus('partial')">◐ Partially Paid</div>
-      <div class="statopt paid"    id="stOptPaid"    onclick="pickStatus('paid')">✓ Paid</div>
+    <h2>Payments</h2>
+    <p id="pmSub">Record each amount as it comes in. The document keeps the full history.</p>
+    <div class="paysum">
+      <div><div class="k">Total</div><div class="v" id="pmTotal">₹0</div></div>
+      <div><div class="k">Received</div><div class="v" id="pmPaid" style="color:var(--ok)">₹0</div></div>
+      <div><div class="k">Pending</div><div class="v" id="pmDue" style="color:var(--bad)">₹0</div></div>
     </div>
-    <div class="fld"><label>Amount Received So Far (₹)</label><input type="number" id="stAmount" min="0" inputmode="decimal"></div>
-    <div class="fld"><label>Remark <span class="hint">(optional — e.g. paid by UPI on 12 Aug)</span></label><input id="stRemark" maxlength="160" placeholder="Reference / note"></div>
-    <div class="close">
-      <button class="x" onclick="hide('statusOverlay')">Cancel</button>
-      <button class="btn gold" onclick="applyStatus()">Save Status</button>
+    <div class="grid" style="gap:10px">
+      <div class="field"><label class="req">Amount Received Now (₹)</label><input type="number" id="pmAmount" min="0" inputmode="decimal"></div>
+      <div class="field"><label>Date Received</label><input type="date" id="pmDate"></div>
+      <div class="field"><label>Mode of Payment</label>
+        <select id="pmMode"><option>Cash</option><option>UPI</option><option>Card</option><option>Bank Transfer</option><option>Cheque</option><option>Other</option></select></div>
+      <div class="field"><label>Remark</label><input id="pmRemark" maxlength="160" placeholder="e.g. UPI ref 4432"></div>
     </div>
+    <button class="btn gold block" id="pmAddBtn" onclick="addPayment()" style="margin-top:12px;padding:13px">＋ Add Payment</button>
+    <div class="pmlist" id="pmList" style="display:none"></div>
+    <div class="close"><button class="x" onclick="hide('payOverlay')">Done</button></div>
   </div>
 </div>
 
@@ -1453,16 +1324,16 @@ function hide(id){$(id).classList.remove('show')}
 /* ============================================================
    VIEW ROUTER
    ============================================================ */
-const VIEW_TITLES={home:'Home',invoice:'Invoice',voucher:'Advance Voucher',staff:'Staff Advances',pastInv:'Past Invoices',pastVou:'Past Vouchers'};
+const VIEW_TITLES={home:'Home',invoice:'Invoice',staff:'Staff Advances',pastInv:'Past Records'};
 let CURRENT_VIEW='home', VIEW_STACK=[];
 function setView(v){
   CURRENT_VIEW=v;
   document.body.dataset.view=v;
   document.querySelectorAll('.view').forEach(s=>s.classList.toggle('active', s.id==='v-'+v));
-  const builder = (v==='invoice'||v==='voucher');
+  const builder = (v==='invoice');
   $('mtabs').style.display = builder ? '' : 'none';
-  $('mtabDoc').textContent = (v==='voucher') ? '🧾 Voucher' : '🧾 Invoice';
   $('mTitle').textContent = VIEW_TITLES[v]||'Home';
+  if(builder && typeof applyDocChrome==='function') applyDocChrome();
   $('mTitle').style.display = isMobile() ? '' : 'none';
   $('backBtn').style.display = (v==='home') ? 'none' : 'inline-flex';
   $('menuBtn').style.display = (SESSION.token && (!isMobile() || v==='home')) ? 'inline-flex' : 'none';
@@ -1624,7 +1495,7 @@ function setActiveHotel(h){
 function setActiveHotelFromConfig(){
   if(!document.querySelector('#roomRows .room-row')) addRoomRow();
   refreshRoomTypeSelects();
-  applyLogo(); applyGate(); render(); renderVoucher();
+  applyLogo(); applyGate(); applyDocChrome(); render();
   $('heroName').innerHTML = 'Welcome, <em>'+escapeHtml((CONFIG.business_name||'Hotel'))+'</em>';
   $('heroSub').textContent = CONFIG.tagline || 'Bills, advance vouchers and staff money — all in one place.';
   const t=$('allowEditToggle'); if(t) t.checked=!!HOTEL_STATUS.allow_edit;
@@ -1646,8 +1517,8 @@ function applyGate(){
   if(msg){ b.textContent=msg; b.className='banner '+cls; b.style.display=''; }
   else b.style.display='none';
   const ok=canGenerate();
-  [['saveBtn'],['invMoSave'],['vSaveBtn']].forEach(([id])=>{ const el=$(id); if(el){ el.disabled=!ok; el.style.opacity=ok?'':'.5'; el.style.pointerEvents=ok?'':'none'; } });
-  updateActionButtons(); updateVoucherButtons();
+  ['saveBtn','invMoSave'].forEach(id=>{ const el=$(id); if(el){ el.disabled=!ok; el.style.opacity=ok?'':'.5'; el.style.pointerEvents=ok?'':'none'; } });
+  updateActionButtons();
 }
 async function toggleHotelEdit(){
   const on=$('allowEditToggle').checked;
@@ -1657,7 +1528,7 @@ async function toggleHotelEdit(){
     await api('setHotelEditPermission',{hotel_id:activeHotelId, allow_edit:on});
     HOTEL_STATUS.allow_edit=on;
     toast(on?"Hotel can now edit saved documents ✓":"Editing locked for this hotel");
-    updateActionButtons(); updateVoucherButtons();
+    updateActionButtons();
   }catch(e){ $('allowEditToggle').checked=!on; toast("Failed: "+niceErr(e.message),true); }
 }
 
@@ -1672,6 +1543,43 @@ async function loadStats(){
   $('stVouchers').textContent   = fmt0(d.month_vouchers||0);
   $('stStaff').textContent      = rupee0(d.staff_outstanding||0);
   $('statsStrip').style.display='';
+}
+
+/* ============================================================
+   DOCUMENT TYPE — Invoice and Advance Voucher share one builder.
+   Only the number series and the printed title differ.
+   ============================================================ */
+let DOC_TYPE='invoice';
+const DOC_META={
+  invoice:{word:'Invoice', card:'Invoice', numLabel:'Invoice No.', dateLabel:'Invoice Date',
+    title:'INVOICE', sub:'TAX INVOICE', tab:'🧾 Invoice',
+    foot:'This is a computer-generated invoice.',
+    hint:'Numbered in your invoice series. This is the final bill for the stay.'},
+  voucher:{word:'Advance Voucher', card:'Advance Voucher', numLabel:'Voucher No.', dateLabel:'Voucher Date',
+    title:'ADVANCE', sub:'ADVANCE VOUCHER', tab:'📄 Voucher',
+    foot:'This is a computer-generated advance voucher. A final invoice will be issued separately.',
+    hint:'Runs on its own ADV-INV-00001 series. Everything else works exactly like an invoice.'}
+};
+function applyDocChrome(){
+  const m=DOC_META[DOC_TYPE];
+  document.querySelectorAll('#docSeg .segtab').forEach(b=>b.classList.toggle('on', b.dataset.dt===DOC_TYPE));
+  $('docCardTitle').textContent=m.card;
+  $('invNoLabel').textContent=m.numLabel;
+  $('invDateLabel').textContent=m.dateLabel;
+  $('docTypeHint').textContent=m.hint;
+  $('ivTitleMain').textContent=m.title;
+  $('ivTitleSub').textContent=m.sub;
+  $('ivFootLine').textContent=m.foot;
+  $('mtabDoc').textContent=m.tab;
+  if(CURRENT_VIEW==='invoice') $('mTitle').textContent=m.word;
+  updateActionButtons();
+}
+function switchDocType(t){
+  if(t===DOC_TYPE) return;
+  DOC_TYPE=t;
+  if(LOADED_INVOICE_ID){ newDoc(t); return; }
+  applyDocChrome(); refreshInvoiceNumber(); render();
+  toast("Switched to "+DOC_META[t].word);
 }
 
 /* ============================================================
@@ -1774,7 +1682,7 @@ function render(){
   $('ivName').textContent = CONFIG.business_name||"—";
   $('ivTag').textContent = CONFIG.tagline||"";
   $('ivFooterName').textContent = CONFIG.business_name||"—";
-  $('ivWatermark').textContent = (CONFIG.business_name||'INVOICE').toUpperCase().slice(0,14);
+  $('ivWatermark').textContent = (DOC_TYPE==='voucher')?'ADVANCE':((CONFIG.business_name||'INVOICE').toUpperCase().slice(0,14));
   const _lg=$('ivLogo'); if(_lg && _lg.classList.contains('placeholder')) _lg.textContent=((CONFIG.business_name||'H').trim().charAt(0)||'H').toUpperCase();
   $('ivContact').innerHTML =
     (CONFIG.address?escapeHtml(CONFIG.address)+"<br>":"")+
@@ -1853,7 +1761,10 @@ function render(){
   const sg=$('ivSign');
   if(CONFIG.signature){sg.src=CONFIG.signature;sg.style.display='block';} else sg.style.display='none';
   const terms=(CONFIG.terms&&CONFIG.terms.length)?CONFIG.terms:[];
-  $('ivTerms').innerHTML = terms.length? terms.map(t=>`<li>${escapeHtml(t)}</li>`).join("") : "<li>—</li>";
+  let tl = terms.map(t=>`<li>${escapeHtml(t)}</li>`).join("");
+  if(DOC_TYPE==='voucher') tl += '<li>This advance voucher is a receipt for money received. It is not the final tax invoice.</li>';
+  $('ivTerms').innerHTML = tl || "<li>—</li>";
+  renderPayHist(g.final);
 }
 
 /* ---------- UPI QR (shared by invoice + voucher) ---------- */
@@ -1947,13 +1858,13 @@ function updateActionButtons(){
   $('voidBtn').style.display      = (saved && editable) ? '' : 'none';
   const ln=$('invLockNote');
   if(ln){
-    if(saved && !editable){ ln.innerHTML='🔒 This invoice is saved and locked. <b>Editing is switched off for this hotel</b> — the super admin can turn it on from Home → Hotel Controls. You can still print, download and duplicate it.'; ln.style.display=''; }
+    if(saved && !editable){ ln.innerHTML='🔒 This '+DOC_META[DOC_TYPE].word.toLowerCase()+' is saved and locked. <b>Editing is switched off for this hotel</b> — the super admin can turn it on from Home → Hotel Controls. You can still print, download and duplicate it.'; ln.style.display=''; }
     else ln.style.display='none';
   }
   $('voidBtn').textContent        = LOADED_VOIDED ? '↩ Un-void' : '🚫 Void';
   const stamp=$('ivVoidStamp'); if(stamp) stamp.style.display = LOADED_VOIDED ? '' : 'none';
   const sb=$('saveBtn'), mo=$('invMoSave');
-  const label = INV_EDITING ? '💾 Update Invoice' : '💾 Save Invoice';
+  const label = (INV_EDITING ? '💾 Update ' : '💾 Save ') + DOC_META[DOC_TYPE].word;
   if(sb) sb.textContent=label;
   if(mo) mo.textContent= INV_EDITING ? '💾 Update' : '💾 Save';
 }
@@ -1966,8 +1877,8 @@ function setFormLocked(locked){
   const mob=$('invMoSave'); if(mob) mob.style.display=locked?'none':'';
   const h=$('saveHint');
   if(h){ h.style.display=''; h.textContent=locked
-    ? 'Saved invoice — read-only. Use Edit to change it, or ＋ New for another.'
-    : (INV_EDITING?'Editing a saved invoice. Update to overwrite it.':'Save to lock this number — print, download and WhatsApp unlock after saving.'); }
+    ? 'Saved '+DOC_META[DOC_TYPE].word.toLowerCase()+' — read-only. Use Edit to change it, or ＋ New for another.'
+    : (INV_EDITING?'Editing a saved document. Update to overwrite it.':'Save to lock this number — print, download and WhatsApp unlock after saving.'); }
 }
 function enableInvoiceEdit(){
   if(!canEdit()){ toast(niceErr('edit_not_allowed'),true); return; }
@@ -1983,7 +1894,7 @@ function clearInvalid(){
 function onFieldEdit(){ clearInvalid(); if(!INV_EDITING) setSaved(false); render(); saveDraft(); }
 function syncStatusToAmounts(){ statusTouched=false; render(); toast("Status matched to the amounts"); }
 function duplicateInvoice(){
-  LOADED_INVOICE_ID=null; LOADED_VOIDED=false; INV_EDITING=false; statusTouched=false;
+  LOADED_INVOICE_ID=null; LOADED_VOIDED=false; INV_EDITING=false; statusTouched=false; CUR_PAYMENTS=[];
   $('advance').value=0; $('payRemark').value=''; $('payStatus').value='pending';
   $('invDate').value=todayIST();
   setFormLocked(false); clearInvalid(); setSaved(false);
@@ -2043,6 +1954,7 @@ function collectInvoice(){
   const agentOn=$('agentOpt').checked;
   const paid=+$('advance').value||0;
   return{
+    doc_type:DOC_TYPE,
     invoice_number:$('invNo').value, invoice_date:$('invDate').value,
     guest_name:$('gName').value, guest_phone:$('gPhone').value,
     checkin_date:$('cin').value, checkout_date:$('cout').value, nights:c.nights,
@@ -2075,13 +1987,16 @@ async function saveInvoice(){
     const saved=(d&&d.invoice)||{};
     if(saved.invoice_number) $('invNo').value=saved.invoice_number;
     if(saved.id) LOADED_INVOICE_ID=saved.id;
+    if(d&&Array.isArray(d.payments)) CUR_PAYMENTS=d.payments.slice();
+    else if(!INV_EDITING){ const a=+$('advance').value||0;
+      CUR_PAYMENTS = a>0 ? [{id:'local',amount:a,paid_on:$('invDate').value,payment_mode:$('payMode').value,remark:$('payRemark').value}] : []; }
     const wasEditing=INV_EDITING;
     INV_EDITING=false; LOADED_VOIDED=!!saved.voided;
     setSaved(true); setFormLocked(true); render();
     if(isMobile()) setMTab('invoice');
     if(wasEditing) toast("Invoice updated ✓");
-    else { SAVED_CTX='invoice'; $('savedTitle').textContent='Invoice saved ✓';
-      $('savedMsg').innerHTML='Invoice <b>'+escapeHtml($('invNo').value)+'</b> saved. Print it, save a copy, or start the next one.';
+    else { $('savedTitle').textContent=DOC_META[DOC_TYPE].word+' saved ✓';
+      $('savedMsg').innerHTML=DOC_META[DOC_TYPE].word+' <b>'+escapeHtml($('invNo').value)+'</b> saved. Print it, save a copy, or start the next one.';
       show('savedOverlay'); }
     clearDraftSilently();
     loadStats();
@@ -2091,12 +2006,15 @@ async function refreshInvoiceNumber(){
   setSaved(false);
   if(!canGenerate()){ $('invNo').value='—'; render(); return; }
   try{
-    const d=await api('getNextInvoiceNumber', hotelParam());
+    const d=await api('getNextInvoiceNumber', {doc_type:DOC_TYPE, ...hotelParam()});
     $('invNo').value=(d&&d.invoice_number)?d.invoice_number:'—';
   }catch(e){ $('invNo').value='—'; }
   render();
 }
-function newInvoice(){
+function newInvoice(){ newDoc('invoice'); }
+function newDoc(type){
+  DOC_TYPE = (type==='voucher') ? 'voucher' : 'invoice';
+  CUR_PAYMENTS=[];
   ['gName','gPhone','cin','cout','payRemark','agentName','agentPhone'].forEach(id=>$(id).value='');
   $('people').value=2;
   $('roomRows').innerHTML=''; addRoomRow();
@@ -2109,7 +2027,7 @@ function newInvoice(){
   $('gstAdd').checked=false; $('payMode').value='Cash'; $('payStatus').value='pending';
   $('invDate').value=todayIST();
   setFormLocked(false); clearInvalid(); setSaved(false);
-  go('invoice'); setMTab('details');
+  go('invoice'); applyDocChrome(); setMTab('details');
   refreshInvoiceNumber();
   checkDraft();
 }
@@ -2194,20 +2112,13 @@ function downloadCSV(filename, headers, rows){
 }
 function exportInvoicesCSV(){
   if(!PAST_INV_ARR.length){ toast("Nothing to export yet",true); return; }
-  downloadCSV('invoices-'+todayIST()+'.csv',
-    ['Invoice No','Date','Guest','Phone','Total','Received','Balance','Status','Mode','Remark'],
+  downloadCSV((PAST_TYPE==='voucher'?'advance-vouchers-':'invoices-')+todayIST()+'.csv',
+    ['Document No','Date','Name','Phone','Total','Received','Balance','Status','Mode','Remark'],
     PAST_INV_ARR.map(i=>{
       const paid=Number(i.amount_paid||i.advance_amount||0), tot=Number(i.total_amount||0);
       return [i.invoice_number,String(i.invoice_date||'').slice(0,10),i.guest_name,i.guest_phone,tot,paid,
         Math.max(0,tot-paid), i.voided?'cancelled':(i.payment_status||'pending'), i.payment_mode||'', i.payment_remark||''];
     }));
-}
-function exportVouchersCSV(){
-  if(!VOU_ARR.length){ toast("Nothing to export yet",true); return; }
-  downloadCSV('advance-vouchers-'+todayIST()+'.csv',
-    ['Voucher No','Date','Received From','Phone','Amount','Mode','Reference','Remark','Purpose','Status'],
-    VOU_ARR.map(v=>[v.voucher_number,String(v.voucher_date||'').slice(0,10),v.received_from,v.phone,
-      Number(v.amount||0),v.payment_mode||'',v.reference||'',v.payment_remark||'',v.purpose||'',v.voided?'cancelled':'active']));
 }
 function exportStaffCSV(){
   const rows=(STAFF_CACHE&&STAFF_CACHE.rows)||[];
@@ -2219,9 +2130,21 @@ function exportStaffCSV(){
 }
 
 /* ---------- past invoices ---------- */
-let PAST_INV={}, PAST_INV_ARR=[], VOU_ARR=[], INV_FILTER='', pastTimer;
+let PAST_INV={}, PAST_INV_ARR=[], INV_FILTER='', PAST_TYPE='invoice', pastTimer;
+function openPast(type){ setPastType(type||'invoice',true); go('pastInv'); loadPastInvoices(); }
+function setPastType(t,quiet){
+  PAST_TYPE = (t==='voucher') ? 'voucher' : 'invoice';
+  document.querySelectorAll('#pastSeg .segtab').forEach(b=>b.classList.toggle('on', b.dataset.dt===PAST_TYPE));
+  const inv = PAST_TYPE==='invoice';
+  $('pastTitle').textContent = inv ? 'Past Invoices' : 'Past Advance Vouchers';
+  $('pastSub').textContent = inv ? 'Tap a bill to open it. Use Payments to record money received.'
+                                 : 'Tap a voucher to open, reprint or record further payments.';
+  if(CURRENT_VIEW==='pastInv') $('mTitle').textContent = inv ? 'Past Invoices' : 'Past Vouchers';
+  if(!quiet) loadPastInvoices();
+}
 function openPastInvoices(filter){
   if(filter!==undefined){
+    setPastType('invoice',true);
     INV_FILTER=filter||'';
     document.querySelectorAll('#v-pastInv .fchip').forEach(b=>b.classList.toggle('on',(b.dataset.st||'')===INV_FILTER));
   }
@@ -2238,11 +2161,11 @@ async function loadPastInvoices(){
   if(!canGenerate()){ list.innerHTML='<div class="empty"><span class="big">🏨</span>Select an approved hotel first.</div>'; return; }
   list.innerHTML='<div class="empty">Loading…</div>';
   try{
-    const d=await api('listInvoices',{query:$('pastSearch').value||"",limit:60, ...hotelParam()});
+    const d=await api('listInvoices',{query:$('pastSearch').value||"",limit:60, doc_type:PAST_TYPE, ...hotelParam()});
     let arr=d.invoices||[];
     if(INV_FILTER) arr=arr.filter(i=>(i.payment_status||'pending')===INV_FILTER);
     PAST_INV_ARR=arr;
-    if(!arr.length){ list.innerHTML='<div class="empty"><span class="big">📄</span>No invoices found.</div>'; return; }
+    if(!arr.length){ list.innerHTML='<div class="empty"><span class="big">📄</span>No '+(PAST_TYPE==='voucher'?'advance vouchers':'invoices')+' found.</div>'; return; }
     PAST_INV={};
     list.innerHTML=arr.map(i=>{
       PAST_INV[i.id]=i;
@@ -2258,14 +2181,16 @@ async function loadPastInvoices(){
         <div class="rc-right">
           <div class="rc-amt">${rupee0(tot)}</div>
           ${bal>0?`<div class="rc-bal">Balance ${rupee0(bal)}</div>`:''}
-          ${(canEdit()&&!i.voided)?`<button class="btn sm" onclick="quickStatus('${escapeHtml(i.id)}')">✓ Status</button>`:''}
+          ${(canEdit()&&!i.voided)?`<button class="btn sm" onclick="reloadInvoice('${escapeHtml(i.id)}',false,true)">₹ Payments</button>`:''}
         </div></div>`;
     }).join("");
   }catch(e){ list.innerHTML='<div class="empty">Error: '+escapeHtml(niceErr(e.message))+'</div>'; }
 }
-async function reloadInvoice(id){
+async function reloadInvoice(id,quiet,openPay){
   try{
     const d=await api('getInvoice',{id, ...hotelParam()}); const i=d.invoice;
+    DOC_TYPE = (i.doc_type==='voucher') ? 'voucher' : 'invoice';
+    CUR_PAYMENTS = Array.isArray(d.payments) ? d.payments.slice() : [];
     $('invNo').value=i.invoice_number;$('invDate').value=(i.invoice_date||'').slice(0,10);
     $('gName').value=i.guest_name||'';$('gPhone').value=i.guest_phone||'';
     $('cin').value=(i.checkin_date||'').slice(0,10);$('cout').value=(i.checkout_date||'').slice(0,10);
@@ -2296,18 +2221,19 @@ async function reloadInvoice(id){
     statusTouched=true;
     LOADED_INVOICE_ID=i.id; LOADED_VOIDED=!!i.voided; INV_EDITING=false;
     const db=$('draftBar'); if(db) db.style.display='none';
-    go('invoice'); render(); setSaved(true); setFormLocked(true);
-    if(isMobile()) setMTab('invoice');
-    toast("Loaded "+i.invoice_number+(i.voided?" (VOIDED)":""));
+    if(!quiet) go('invoice');
+    applyDocChrome(); render(); setSaved(true); setFormLocked(true);
+    if(!quiet && isMobile() && !openPay) setMTab('invoice');
+    if(openPay) openPaymentsModal();
+    else if(!quiet) toast("Loaded "+i.invoice_number+(i.voided?" (CANCELLED)":""));
   }catch(e){ toast("Could not load: "+niceErr(e.message),true); }
 }
-let VOID_CTX='invoice', VOID_UNDO=false;
-function askVoid(ctx){
-  VOID_CTX=ctx;
-  const voided = (ctx==='voucher') ? VOU_VOIDED : LOADED_VOIDED;
-  const no = (ctx==='voucher') ? $('vNo').value : $('invNo').value;
-  const word = (ctx==='voucher') ? 'voucher' : 'invoice';
-  if(ctx==='voucher' ? !LOADED_VOUCHER_ID : !LOADED_INVOICE_ID){ toast("Open a saved "+word+" first",true); return; }
+let VOID_UNDO=false;
+function askVoid(){
+  const voided = LOADED_VOIDED;
+  const no = $('invNo').value;
+  const word = DOC_META[DOC_TYPE].word.toLowerCase();
+  if(!LOADED_INVOICE_ID){ toast("Open a saved "+word+" first",true); return; }
   VOID_UNDO=voided;
   $('voidTitle').textContent = voided ? ('Restore '+(no||'this '+word)+'?') : ('Cancel '+(no||'this '+word)+'?');
   $('voidSub').textContent = voided
@@ -2321,8 +2247,7 @@ function askVoid(ctx){
 function confirmVoid(){
   const reason=$('voidReason').value.trim(), voiding=!VOID_UNDO;
   hide('voidOverlay');
-  if(VOID_CTX==='voucher') voidCurrentVoucher(voiding,reason);
-  else voidCurrentInvoice(voiding,reason);
+  voidCurrentInvoice(voiding,reason);
 }
 async function voidCurrentInvoice(voiding,reason){
   if(!LOADED_INVOICE_ID){ toast("Open a saved invoice first",true); return; }
@@ -2336,232 +2261,116 @@ async function voidCurrentInvoice(voiding,reason){
   }catch(e){ toast("Failed: "+niceErr(e.message),true); }
 }
 
-/* ---------- payment status modal ---------- */
-let ST_TARGET=null, ST_PICK='pending';
-function openStatusModal(){
-  if(!LOADED_INVOICE_ID){ toast("Open a saved invoice first",true); return; }
-  const g=gstCalc();
-  ST_TARGET={id:LOADED_INVOICE_ID, total:g.final, no:$('invNo').value};
-  fillStatusModal($('payStatus').value, +$('advance').value||0, $('payRemark').value||'');
+/* ---------- payments ledger ---------- */
+let CUR_PAYMENTS=[], PM_TARGET=null;
+function paidFromLedger(){ return CUR_PAYMENTS.reduce((t,pm)=>t+Number(pm.amount||0),0); }
+function renderPayHist(total){
+  const box=$('ivPayHist');
+  if(!CUR_PAYMENTS.length || !LOADED_INVOICE_ID){ box.style.display='none'; return; }
+  let run=0;
+  const body=CUR_PAYMENTS.map(pm=>{
+    run+=Number(pm.amount||0);
+    return '<tr><td>'+fmtDate(pm.paid_on)+'</td>'+
+      '<td>'+escapeHtml(pm.payment_mode||'—')+(pm.remark?'<div class="sub">'+escapeHtml(pm.remark)+'</div>':'')+'</td>'+
+      '<td class="r">'+fmt(pm.amount)+'</td>'+
+      '<td class="r" style="color:var(--muted)">'+fmt(Math.max(0,total-run))+'</td></tr>';
+  }).join('');
+  const due=Math.max(0,total-run);
+  $('ivPayHistTable').innerHTML =
+    '<tr><td class="k">Date</td><td class="k">Mode / Remark</td><td class="k r">Received</td><td class="k r">Pending After</td></tr>'+
+    body+'<tr class="due"><td colspan="2">'+(due>0?'Balance Pending':'Fully Paid')+'</td>'+
+    '<td class="r">'+rupee(run)+'</td><td class="r">'+rupee(due)+'</td></tr>';
+  box.style.display='';
 }
-function quickStatus(id){
-  const i=PAST_INV[id]; if(!i) return;
-  ST_TARGET={id, total:Number(i.total_amount||0), no:i.invoice_number};
-  fillStatusModal(i.payment_status||'pending', Number(i.amount_paid||i.advance_amount||0), i.status_remark||'');
+function openPaymentsModal(){
+  if(!LOADED_INVOICE_ID){ toast("Save the document first",true); return; }
+  PM_TARGET=LOADED_INVOICE_ID;
+  $('pmSub').innerHTML=DOC_META[DOC_TYPE].word+' <b>'+escapeHtml($('invNo').value||'')+'</b> — record each amount as it comes in.';
+  $('pmAmount').value=''; $('pmRemark').value=''; $('pmDate').value=todayIST(); $('pmMode').value=$('payMode').value||'Cash';
+  paintPayments(); show('payOverlay');
 }
-function fillStatusModal(status, paid, remark){
-  ST_PICK=status||'pending';
-  $('stModalSub').innerHTML='Invoice <b>'+escapeHtml(ST_TARGET.no||'')+'</b> · Total '+rupee(ST_TARGET.total||0);
-  $('stAmount').value=paid||0;
-  $('stRemark').value=remark||'';
-  paintStatusPick();
-  show('statusOverlay');
+function paintPayments(){
+  const total=gstCalc().final, paid=paidFromLedger(), due=Math.max(0,total-paid);
+  $('pmTotal').textContent=rupee0(total);
+  $('pmPaid').textContent=rupee0(paid);
+  $('pmDue').textContent=rupee0(due);
+  const list=$('pmList');
+  if(!CUR_PAYMENTS.length){ list.style.display='none'; list.innerHTML=''; return; }
+  list.style.display='';
+  list.innerHTML=CUR_PAYMENTS.map((pm,i)=>
+    '<div class="pmrow"><div class="pd"><b>'+fmtDate(pm.paid_on)+'</b>'+
+    '<small>'+escapeHtml(pm.payment_mode||'—')+(pm.remark?' · '+escapeHtml(pm.remark):'')+'</small></div>'+
+    '<div class="pa">+'+rupee0(pm.amount)+'</div>'+
+    (canEdit()?'<button class="px" title="Remove" onclick="removePayment('+i+')">🗑</button>':'')+
+    '</div>').join('');
 }
-function paintStatusPick(){
-  ['pending','partial','paid'].forEach(s=>{
-    const el=$('stOpt'+s.charAt(0).toUpperCase()+s.slice(1));
-    if(el) el.classList.toggle('on', s===ST_PICK);
-  });
+function ingestPayments(d){
+  if(d && Array.isArray(d.payments)) CUR_PAYMENTS=d.payments.slice();
+  if(d && d.invoice){
+    if(d.invoice.amount_paid!=null) $('advance').value=d.invoice.amount_paid;
+    if(d.invoice.payment_status) $('payStatus').value=d.invoice.payment_status;
+    statusTouched=true;
+  }
+  render();
 }
-function pickStatus(s){
-  ST_PICK=s; paintStatusPick();
-  if(s==='paid') $('stAmount').value=Math.round(ST_TARGET.total||0);
-  if(s==='pending') $('stAmount').value=0;
-}
-async function applyStatus(){
-  if(!ST_TARGET) return;
-  const paid=+$('stAmount').value||0;
+async function addPayment(){
+  const amt=+$('pmAmount').value||0;
+  if(amt<=0){ toast("Enter the amount received",true); $('pmAmount').classList.add('invalid'); return; }
+  $('pmAmount').classList.remove('invalid');
+  const btn=$('pmAddBtn'); btn.disabled=true; btn.textContent='Adding…';
   try{
-    toast("Updating status…");
-    await api('setInvoiceStatus',{id:ST_TARGET.id, payment_status:ST_PICK, amount_paid:paid, status_remark:$('stRemark').value.trim(), ...hotelParam()});
-    hide('statusOverlay');
-    toast("Marked "+STATUS_LABEL[ST_PICK]+" ✓");
-    if(LOADED_INVOICE_ID===ST_TARGET.id){
-      $('advance').value=paid; $('payStatus').value=ST_PICK; statusTouched=true; render();
-    }
+    const d=await api('addInvoicePayment',{invoice_id:PM_TARGET, payment:{
+      amount:amt, paid_on:$('pmDate').value||todayIST(),
+      payment_mode:$('pmMode').value, remark:$('pmRemark').value.trim()}, ...hotelParam()});
+    ingestPayments(d);
+    $('pmAmount').value=''; $('pmRemark').value=''; $('pmDate').value=todayIST();
+    paintPayments();
+    toast("Payment of "+rupee0(amt)+" recorded ✓");
+    if(CURRENT_VIEW==='pastInv') loadPastInvoices();
+    loadStats();
+  }catch(e){ toast("Failed: "+niceErr(e.message),true); }
+  btn.disabled=false; btn.textContent='＋ Add Payment';
+}
+async function removePayment(i){
+  const pm=CUR_PAYMENTS[i]; if(!pm) return;
+  if(!confirm("Remove the "+rupee0(pm.amount)+" payment dated "+fmtDate(pm.paid_on)+"?")) return;
+  try{
+    const d=await api('deleteInvoicePayment',{id:pm.id, ...hotelParam()});
+    ingestPayments(d); paintPayments(); toast("Payment removed");
     if(CURRENT_VIEW==='pastInv') loadPastInvoices();
     loadStats();
   }catch(e){ toast("Failed: "+niceErr(e.message),true); }
 }
 
-/* ============================================================
-   ADVANCE VOUCHER MODULE
-   ============================================================ */
-let voucherSaved=false, LOADED_VOUCHER_ID=null, VOU_VOIDED=false, VOU_EDITING=false;
-function vouPanel(){ return document.querySelector('#v-voucher .form-panel'); }
-
-function renderVoucher(){
-  const amt=+$('vAmount').value||0;
-  $('vWordsHint').textContent = amt>0 ? inWords(amt) : '';
-  $('vvName').textContent = CONFIG.business_name||"—";
-  $('vvTag').textContent = CONFIG.tagline||"";
-  $('vvFooterName').textContent = CONFIG.business_name||"—";
-  const _lg=$('vvLogo'); if(_lg && _lg.classList.contains('placeholder')) _lg.textContent=((CONFIG.business_name||'H').trim().charAt(0)||'H').toUpperCase();
-  $('vvContact').innerHTML =
-    (CONFIG.address?escapeHtml(CONFIG.address)+"<br>":"")+
-    (CONFIG.phone?"<b>Ph:</b> "+escapeHtml(CONFIG.phone)+"  ":"")+
-    (CONFIG.email?"<br>"+escapeHtml(CONFIG.email):"")+
-    (CONFIG.gstin?"<br><b>GSTIN:</b> "+escapeHtml(CONFIG.gstin):"");
-  $('vvNo').textContent=$('vNo').value||'—';
-  $('vvDate').textContent=fmtDate($('vDate').value);
-  $('vvAmount').textContent=rupee(amt);
-  $('vvWords').textContent=inWords(amt);
-  $('vvFrom').textContent=$('vName').value||"—";
-  $('vvPhone').textContent=$('vPhone').value||"—";
-  $('vvMode').textContent=$('vMode').value;
-  $('vvMode2').textContent=$('vMode').value;
-  const ref=$('vRef').value.trim();
-  $('vvRefWrap').style.display=ref?'':'none'; $('vvRef').textContent=ref;
-  const rmk=$('vPayRemark').value.trim();
-  $('vvRemarkWrap').style.display=rmk?'':'none'; $('vvRemark').textContent=rmk;
-  const pur=$('vPurpose').value.trim();
-  $('vvPurposeBox').style.display=pur?'':'none'; $('vvPurpose').textContent=pur;
-  let bank="";
-  if(CONFIG.bank_name)bank+='<span class="lbl">Bank:</span> '+escapeHtml(CONFIG.bank_name)+'<br>';
-  if(CONFIG.bank_account_name)bank+='<span class="lbl">A/C Name:</span> '+escapeHtml(CONFIG.bank_account_name)+'<br>';
-  if(CONFIG.bank_account_no)bank+='<span class="lbl">A/C No:</span> '+escapeHtml(CONFIG.bank_account_no)+'<br>';
-  if(CONFIG.bank_ifsc)bank+='<span class="lbl">IFSC:</span> '+escapeHtml(CONFIG.bank_ifsc);
-  if(CONFIG.upi_id)bank+=(bank?'<br>':'')+'<span class="lbl">UPI:</span> '+escapeHtml(CONFIG.upi_id);
-  if(bank){ $('vvBank').innerHTML=bank; $('vvBankBox').style.display=''; } else $('vvBankBox').style.display='none';
-  const sg=$('vvSign');
-  if(CONFIG.signature){sg.src=CONFIG.signature;sg.style.display='block';} else sg.style.display='none';
-  $('vvVoidStamp').style.display = VOU_VOIDED ? '' : 'none';
-}
-function setVoucherSaved(v){ voucherSaved=v; updateVoucherButtons(); }
-function updateVoucherButtons(){
-  const ok = voucherSaved && canGenerate();
-  document.querySelectorAll('#v-voucher .toolbar .vact').forEach(b=>{ b.disabled=!ok; b.style.opacity=ok?'':'.45'; b.style.pointerEvents=ok?'':'none'; });
-  const saved=!!LOADED_VOUCHER_ID;
-  $('editVouBtn').style.display = (saved && canEdit() && !VOU_EDITING) ? '' : 'none';
-  $('voidVouBtn').style.display = (saved && canEdit()) ? '' : 'none';
-  $('voidVouBtn').textContent   = VOU_VOIDED ? '↩ Un-void' : '🚫 Void';
-  const ln=$('vouLockNote');
-  if(ln){
-    if(saved && !canEdit()){ ln.innerHTML='🔒 This voucher is saved and locked. <b>Editing is switched off for this hotel</b> — the super admin can turn it on from Home → Hotel Controls.'; ln.style.display=''; }
-    else ln.style.display='none';
-  }
-  const b=$('vSaveBtn'); if(b) b.textContent = VOU_EDITING ? '💾 Update Voucher' : '💾 Save Voucher';
-  const h=$('vSaveHint'); if(h) h.style.display = (voucherSaved && !VOU_EDITING) ? 'none' : '';
-}
-function setVoucherLocked(locked){
-  const p=vouPanel(); if(!p) return;
-  p.querySelectorAll('input,select,textarea').forEach(el=>{ el.disabled=locked; });
-  $('vSaveBtn').style.display=locked?'none':'';
-  const h=$('vSaveHint');
-  if(h) h.textContent = locked ? 'Saved voucher — read-only. Use Edit to change it, or ＋ New for another.'
-    : (VOU_EDITING?'Editing a saved voucher. Update to overwrite it.':'Save to lock this number — print, download and WhatsApp unlock after saving.');
-}
-function enableVoucherEdit(){
-  if(!canEdit()){ toast(niceErr('edit_not_allowed'),true); return; }
-  VOU_EDITING=true; setVoucherLocked(false); updateVoucherButtons();
-  if(isMobile()) setMTab('details');
-  toast("Editing — tap Update to save changes");
-}
-function onVoucherEdit(){
-  const p=vouPanel(); if(p) p.querySelectorAll('.invalid').forEach(e=>e.classList.remove('invalid'));
-  $('vSaveError').classList.remove('show');
-  if(!VOU_EDITING) setVoucherSaved(false);
-  renderVoucher();
-}
-function validateVoucher(){
-  const miss=[];
-  if(!$('vName').value.trim()){ miss.push('Name of the person / party the money came from'); $('vName').classList.add('invalid'); }
-  const ph=$('vPhone').value.trim();
-  if(ph && !/^\d{10}$/.test(ph)){ miss.push('Mobile number must be 10 digits (or leave it blank)'); $('vPhone').classList.add('invalid'); }
-  if((+$('vAmount').value||0)<=0){ miss.push('Amount must be more than ₹0'); $('vAmount').classList.add('invalid'); }
-  return miss;
-}
-function collectVoucher(){
-  const amt=+$('vAmount').value||0;
-  return {
-    voucher_number:$('vNo').value, voucher_date:$('vDate').value,
-    received_from:$('vName').value.trim(), phone:$('vPhone').value.trim(),
-    amount:amt, amount_in_words:inWords(amt),
-    purpose:$('vPurpose').value.trim(), reference:$('vRef').value.trim(),
-    payment_mode:$('vMode').value, payment_remark:$('vPayRemark').value.trim()
-  };
-}
-async function saveVoucher(){
-  if(!canGenerate()){ toast("Vouchers are locked for this hotel right now.",true); return; }
-  const miss=validateVoucher();
-  if(miss.length){ showValidation(miss,'vSaveError',vouPanel()); toast("Missing required details",true); return; }
-  toast(VOU_EDITING?"Updating…":"Saving…");
+/* ---------- refresh: re-pull the database and repaint ---------- */
+let refreshing=false;
+async function refreshAll(){
+  if(refreshing) return;
+  refreshing=true;
+  const ic=$('refreshIcon'); if(ic) ic.classList.add('spinning');
   try{
-    let d;
-    if(VOU_EDITING && LOADED_VOUCHER_ID) d=await api('updateVoucher',{id:LOADED_VOUCHER_ID, voucher:collectVoucher(), ...hotelParam()});
-    else d=await api('saveVoucher',{voucher:collectVoucher(), ...hotelParam()});
-    const v=(d&&d.voucher)||{};
-    if(v.voucher_number) $('vNo').value=v.voucher_number;
-    if(v.id) LOADED_VOUCHER_ID=v.id;
-    const wasEditing=VOU_EDITING;
-    VOU_EDITING=false; VOU_VOIDED=!!v.voided;
-    setVoucherSaved(true); setVoucherLocked(true); renderVoucher();
-    if(isMobile()) setMTab('invoice');
-    if(wasEditing) toast("Voucher updated ✓");
-    else { SAVED_CTX='voucher'; $('savedTitle').textContent='Voucher saved ✓';
-      $('savedMsg').innerHTML='Voucher <b>'+escapeHtml($('vNo').value)+'</b> saved. Print it, save a copy, or start the next one.';
-      show('savedOverlay'); }
-    loadStats();
-  }catch(e){ toast((VOU_EDITING?"Update":"Save")+" failed: "+niceErr(e.message),true); }
-}
-async function refreshVoucherNumber(){
-  setVoucherSaved(false);
-  if(!canGenerate()){ $('vNo').value='—'; renderVoucher(); return; }
-  const d=await apiSoft('getNextVoucherNumber', hotelParam());
-  $('vNo').value=(d&&d.voucher_number)?d.voucher_number:'—';
-  if(!d) toast("Voucher numbering needs the backend update (getNextVoucherNumber).",true);
-  renderVoucher();
-}
-function newVoucher(){
-  ['vName','vPhone','vRef','vPayRemark','vPurpose'].forEach(id=>$(id).value='');
-  $('vAmount').value=0; $('vMode').value='Cash'; $('vDate').value=todayIST();
-  LOADED_VOUCHER_ID=null; VOU_VOIDED=false; VOU_EDITING=false;
-  setVoucherLocked(false); setVoucherSaved(false);
-  $('vSaveError').classList.remove('show');
-  go('voucher'); setMTab('details');
-  refreshVoucherNumber();
-}
-let vouTimer;
-function openPastVouchers(){ go('pastVou'); loadPastVouchers(); }
-function debouncedPastVou(){ clearTimeout(vouTimer); vouTimer=setTimeout(loadPastVouchers,320); }
-async function loadPastVouchers(){
-  const list=$('vouList');
-  if(!canGenerate()){ list.innerHTML='<div class="empty"><span class="big">🏨</span>Select an approved hotel first.</div>'; return; }
-  list.innerHTML='<div class="empty">Loading…</div>';
-  const d=await apiSoft('listVouchers',{query:$('vouSearch').value||"",limit:60, ...hotelParam()});
-  if(!d){ list.innerHTML='<div class="empty"><span class="big">🛠</span>Vouchers need the backend update first.</div>'; return; }
-  const arr=d.vouchers||[]; VOU_ARR=arr;
-  if(!arr.length){ list.innerHTML='<div class="empty"><span class="big">🧾</span>No vouchers yet.</div>'; return; }
-  list.innerHTML=arr.map(v=>`<div class="row-card">
-    <div class="rc-main" onclick="reloadVoucher('${escapeHtml(v.id)}')">
-      <div class="rc-top"><span class="rc-no">${escapeHtml(v.voucher_number||'—')}</span>${v.voided?'<span class="chip void">Void</span>':'<span class="chip gold">Advance</span>'}</div>
-      <div class="rc-sub">${escapeHtml(v.received_from||'—')}${v.phone?' · '+escapeHtml(v.phone):''} · ${fmtDate(v.voucher_date)}${v.payment_mode?' · '+escapeHtml(v.payment_mode):''}</div>
-    </div>
-    <div class="rc-right"><div class="rc-amt">${rupee0(v.amount)}</div></div></div>`).join("");
-}
-async function reloadVoucher(id){
-  const d=await apiSoft('getVoucher',{id, ...hotelParam()});
-  if(!d||!d.voucher){ toast("Could not load that voucher",true); return; }
-  const v=d.voucher;
-  $('vNo').value=v.voucher_number||''; $('vDate').value=(v.voucher_date||'').slice(0,10);
-  $('vName').value=v.received_from||''; $('vPhone').value=v.phone||'';
-  $('vAmount').value=v.amount||0; $('vMode').value=v.payment_mode||'Cash';
-  $('vRef').value=v.reference||''; $('vPayRemark').value=v.payment_remark||''; $('vPurpose').value=v.purpose||'';
-  LOADED_VOUCHER_ID=v.id; VOU_VOIDED=!!v.voided; VOU_EDITING=false;
-  go('voucher'); renderVoucher(); setVoucherSaved(true); setVoucherLocked(true);
-  if(isMobile()) setMTab('invoice');
-  toast("Loaded "+(v.voucher_number||'')+(v.voided?" (VOIDED)":""));
-}
-async function voidCurrentVoucher(voiding,reason){
-  if(!LOADED_VOUCHER_ID) return;
-  reason=reason||'';
-  toast(voiding?"Cancelling…":"Restoring…");
-  try{
-    const d=await api('voidVoucher',{id:LOADED_VOUCHER_ID, reason:reason, void:voiding, ...hotelParam()});
-    VOU_VOIDED=(d&&d.voucher)?!!d.voucher.voided:voiding;
-    renderVoucher(); updateVoucherButtons(); loadStats();
-    toast(voiding?"Voucher cancelled ✓":"Voucher restored ✓");
-  }catch(e){ toast("Failed: "+niceErr(e.message),true); }
+    if(SESSION.token){
+      if(SESSION.role==='super_admin'){
+        if(activeHotelId){ ingestConfig(await api('getConfig',{hotel_id:activeHotelId})); setActiveHotelFromConfig(); }
+        else await loadHotelPicker();
+      }else{
+        const d=await api('me');
+        SESSION.role=pickRole(d)||SESSION.role;
+        SESSION.hotel=pickHotel(d)||SESSION.hotel;
+        setActiveHotel(SESSION.hotel||{});
+      }
+    }
+    if(CURRENT_VIEW==='pastInv') await loadPastInvoices();
+    else if(CURRENT_VIEW==='staff') await loadStaff();
+    else if(CURRENT_VIEW==='invoice'){
+      if(LOADED_INVOICE_ID) await reloadInvoice(LOADED_INVOICE_ID,true);
+      else await refreshInvoiceNumber();
+    }
+    await loadStats();
+    toast("Refreshed ✓");
+  }catch(e){ toast("Refresh failed: "+niceErr(e.message),true); }
+  if(ic) ic.classList.remove('spinning');
+  refreshing=false;
 }
 
 /* ============================================================
@@ -2700,7 +2509,7 @@ async function delStaffTxn(id){
 /* ============================================================
    EXPORTS — print / pdf / jpg / whatsapp
    ============================================================ */
-let SAVED_CTX='invoice', sizeCallback=null;
+let sizeCallback=null;
 function chooseSize(cb){sizeCallback=cb;show('sizeOverlay')}
 function pickSize(sz){hide('sizeOverlay');if(sizeCallback)sizeCallback(sz)}
 
@@ -2763,10 +2572,6 @@ function printWithSize(size){
 const doPrint = size => printWithSize(size);
 const doPDF   = size => exportPDF($('invoice'),size,$('invNo').value||'invoice');
 const doJPG   = ()   => exportJPG($('invoice'),$('invNo').value||'invoice');
-const doPrintV= size => printWithSize(size);
-const doPDFV  = size => exportPDF($('voucher'),size,$('vNo').value||'voucher');
-const doJPGV  = ()   => exportJPG($('voucher'),$('vNo').value||'voucher');
-
 function waPhone(raw){
   let p=String(raw||'').replace(/\D/g,'');
   if(p.length===10) p='91'+p;
@@ -2798,16 +2603,18 @@ function buildInvoiceWA(){
   const L=[];
   const title=[CONFIG.business_name,CONFIG.tagline].filter(Boolean).join(' — ');
   if(title) L.push(`*${title}*`,'');
-  L.push(`Dear ${greet}, here is your invoice summary:`);
+  L.push(`Dear ${greet}, here is your ${DOC_TYPE==='voucher'?'advance voucher':'invoice'} summary:`);
   if(agentOn) L.push(`*Guest:* ${$('gName').value||'-'}`);
-  L.push('',`*Invoice No:* ${$('invNo').value}`,`*Date:* ${fmtDate($('invDate').value)}`,
+  L.push('',`*${DOC_META[DOC_TYPE].numLabel}* ${$('invNo').value}`,`*Date:* ${fmtDate($('invDate').value)}`,
     `*Check-in:* ${fmtDate($('cin').value)}`,`*Check-out:* ${fmtDate($('cout').value)}`,`*Nights:* ${c.nights}`);
   if(roomLines.length) L.push('','*Rooms:*',...roomLines);
   if(extraLines.length) L.push('','*Items / Services:*',...extraLines);
   L.push('',`*Taxable Value:* ${rupee(g.taxable)}`,`*GST @ ${g.rate}%:* ${rupee(g.gst)}`,`*Grand Total:* ${rupee(g.final)}`,
     `*Received:* ${rupee(paid)}`,`*Balance Due:* ${rupee(bal)}`,`*Status:* ${STATUS_LABEL[$('payStatus').value]}`);
   const pr=$('payRemark').value.trim(); if(pr) L.push(`*Remark:* ${pr}`);
-  if(LOADED_VOIDED) L.push('','*⚠ THIS INVOICE HAS BEEN CANCELLED*');
+  if(CUR_PAYMENTS.length>1){ L.push('','*Payments received:*');
+    CUR_PAYMENTS.forEach(pm=>L.push(`• ${fmtDate(pm.paid_on)} — ${rupee(pm.amount)}${pm.payment_mode?' ('+pm.payment_mode+')':''}`)); }
+  if(LOADED_VOIDED) L.push('','*⚠ THIS DOCUMENT HAS BEEN CANCELLED*');
   L.push('');
   if(CONFIG.upi_id) L.push(`Pay via UPI: ${CONFIG.upi_id}`);
   L.push('Please find the detailed invoice attached.','Thank you! 🙏');
@@ -2818,25 +2625,6 @@ function sendWhatsApp(){
   const phone=waPhone(agentOn?$('agentPhone').value:$('gPhone').value);
   shareOrOpen($('invoice'),buildInvoiceWA(),phone,$('invNo').value||'invoice','Invoice '+($('invNo').value||''));
 }
-function buildVoucherWA(){
-  const amt=+$('vAmount').value||0;
-  const L=[];
-  const title=[CONFIG.business_name,CONFIG.tagline].filter(Boolean).join(' — ');
-  if(title) L.push(`*${title}*`,'');
-  L.push(`Dear ${$('vName').value||'Sir/Madam'}, we acknowledge receipt of your advance payment.`,'',
-    `*Voucher No:* ${$('vNo').value}`,`*Date:* ${fmtDate($('vDate').value)}`,
-    `*Amount Received:* ${rupee(amt)}`,`*In words:* ${inWords(amt)}`,`*Mode:* ${$('vMode').value}`);
-  const ref=$('vRef').value.trim(); if(ref) L.push(`*Reference:* ${ref}`);
-  const rmk=$('vPayRemark').value.trim(); if(rmk) L.push(`*Remark:* ${rmk}`);
-  const pur=$('vPurpose').value.trim(); if(pur) L.push('',`*Purpose:* ${pur}`);
-  if(VOU_VOIDED) L.push('','*⚠ THIS VOUCHER HAS BEEN CANCELLED*');
-  L.push('','This is an advance receipt, not a tax invoice.','Thank you! 🙏');
-  return L.join('\n');
-}
-function sendWhatsAppV(){
-  shareOrOpen($('voucher'),buildVoucherWA(),waPhone($('vPhone').value),$('vNo').value||'voucher','Voucher '+($('vNo').value||''));
-}
-
 /* ============================================================
    EVENT WIRING
    ============================================================ */
@@ -2878,31 +2666,13 @@ $('agentOpt').addEventListener('change',()=>{
 });
 $('agentPhone').addEventListener('input',e=>{ e.target.value=e.target.value.replace(/\D/g,'').slice(0,10); });
 
-/* voucher form */
-vouPanel().querySelectorAll('input,select,textarea').forEach(el=>{
-  if(el.id==='vName'||el.id==='vPhone') return;
-  el.addEventListener('input',onVoucherEdit);
-  el.addEventListener('change',onVoucherEdit);
-});
-$('vName').addEventListener('input',e=>{
-  const el=e.target, pos=el.selectionStart;
-  el.value=titleCase(el.value);
-  try{el.setSelectionRange(pos,pos)}catch(_){}
-  onVoucherEdit(); debouncedGuest(el.value,$('vSuggest'),g=>{
-    $('vName').value=g.name||''; $('vPhone').value=g.phone||''; $('vSuggest').style.display='none'; renderVoucher();
-  });
-});
-$('vPhone').addEventListener('input',e=>{
-  e.target.value=e.target.value.replace(/\D/g,'').slice(0,10); onVoucherEdit();
-});
 $('saName').addEventListener('input',()=>{ $('saName').classList.remove('invalid'); $('saError').classList.remove('show'); });
 
 document.addEventListener('click',e=>{
   if(!e.target.closest('#gName')&&!e.target.closest('#gSuggest')) $('gSuggest').style.display='none';
-  if(!e.target.closest('#vName')&&!e.target.closest('#vSuggest')) $('vSuggest').style.display='none';
 });
 document.addEventListener('keydown',e=>{
-  if(e.key==='Escape'){ closeMenu(); ['sizeOverlay','savedOverlay','statusOverlay'].forEach(hide); }
+  if(e.key==='Escape'){ closeMenu(); ['sizeOverlay','savedOverlay','payOverlay','voidOverlay'].forEach(hide); }
   if(e.key==='Enter' && $('authwrap').classList.contains('show')){
     if($('signupForm').style.display!=='none') doSignup(); else doLogin();
   }
@@ -2919,12 +2689,12 @@ window.addEventListener('resize',()=>{
 document.body.dataset.mtab='details';
 addRoomRow();
 updateExtraChrome();
-renderVoucher();
 applyTheme(lsGet('vp_theme','light'));
 $('invDate').value=todayIST();
-$('vDate').value=todayIST();
 $('saDate').value=todayIST();
+applyDocChrome();
 setView('home');
+$('pmDate').value=todayIST();
 $('connPill').textContent="…";
 restoreSession();
 </script>
