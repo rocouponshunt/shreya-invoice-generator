@@ -561,6 +561,25 @@ body.dark .toast.err{color:#ffb4ad}
   .mode-row .mv{width:78px;font-size:12px}
 }
 
+/* ---------- v2.1 additions ---------- */
+.lockednote{font-size:12.5px;color:var(--app-muted);background:var(--app-surface);border:1px dashed var(--app-border);
+  border-radius:10px;padding:10px 13px;max-width:720px;width:100%;text-align:center;line-height:1.55}
+.lockednote b{color:var(--gold)}
+.draftbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:rgba(201,162,75,.12);
+  border:1px solid rgba(201,162,75,.45);border-radius:12px;padding:11px 13px;margin-bottom:13px;font-size:13px;line-height:1.45}
+.draftbar .db-t{flex:1;min-width:160px}
+.statuswarn{margin-top:8px;font-size:12px;line-height:1.5;background:var(--warn-bg);border:1px solid rgba(255,170,90,.45);
+  color:#9a5b00;border-radius:9px;padding:8px 11px;display:none}
+body.dark .statuswarn{color:#ffd2a8}
+.statuswarn.show{display:block}
+.statuswarn .fix{color:var(--gold);cursor:pointer;text-decoration:underline;font-weight:600}
+.stat.tappable{cursor:pointer}
+.stat.tappable:hover{border-color:rgba(201,162,75,.55);transform:translateY(-2px)}
+.staff-row .settle{background:transparent;border:1px solid var(--app-border);color:var(--gold);border-radius:8px;
+  padding:8px 10px;font-size:12px;cursor:pointer;font-family:'Jost',sans-serif;flex:none;white-space:nowrap}
+.staff-row .settle:hover{background:rgba(201,162,75,.12)}
+.headbtns{display:flex;gap:8px;flex-wrap:wrap}
+
 @media print{
   body{background:#fff}
   .appbar,.form-panel,.toolbar,.overlay,.toast,.mtabs,.banner,.mobar,.drawer,.drawer-scrim,.pagehead{display:none !important}
@@ -603,11 +622,11 @@ body.dark .toast.err{color:#ffb4ad}
     </div>
 
     <div class="stats" id="statsStrip" style="display:none">
-      <div class="stat"><div class="k">Invoices this month</div><div class="v" id="stInvCount">—</div></div>
-      <div class="stat gold"><div class="k">Billed this month</div><div class="v" id="stBilled">—</div></div>
-      <div class="stat bad"><div class="k">Outstanding</div><div class="v" id="stOutstanding">—</div></div>
-      <div class="stat"><div class="k">Vouchers this month</div><div class="v" id="stVouchers">—</div></div>
-      <div class="stat"><div class="k">Staff outstanding</div><div class="v" id="stStaff">—</div></div>
+      <div class="stat tappable" onclick="openPastInvoices('')"><div class="k">Invoices this month</div><div class="v" id="stInvCount">—</div></div>
+      <div class="stat gold tappable" onclick="openPastInvoices('')"><div class="k">Billed this month</div><div class="v" id="stBilled">—</div></div>
+      <div class="stat bad tappable" onclick="openPastInvoices('pending')"><div class="k">Outstanding</div><div class="v" id="stOutstanding">—</div></div>
+      <div class="stat tappable" onclick="openPastVouchers()"><div class="k">Vouchers this month</div><div class="v" id="stVouchers">—</div></div>
+      <div class="stat tappable" onclick="openStaff()"><div class="k">Staff outstanding</div><div class="v" id="stStaff">—</div></div>
     </div>
 
     <div class="tiles">
@@ -652,6 +671,12 @@ body.dark .toast.err{color:#ffb4ad}
 <section class="view" id="v-invoice">
  <div class="layout">
   <div class="form-panel">
+
+    <div class="draftbar" id="draftBar" style="display:none">
+      <div class="db-t">You have an unsaved invoice from <b id="draftWhen"></b>.</div>
+      <button class="btn sm gold" onclick="restoreDraft()">Restore</button>
+      <button class="btn sm" onclick="discardDraft()">Discard</button>
+    </div>
 
     <div class="card">
       <h3>Invoice</h3>
@@ -748,7 +773,8 @@ body.dark .toast.err{color:#ffb4ad}
           </select>
         </div>
         <div class="field full"><label>Payment Remark <span class="hint">(why / reference — shown on the bill)</span></label>
-          <input id="payRemark" placeholder="e.g. UPI ref 4432, balance on checkout" maxlength="160"></div>
+          <input id="payRemark" placeholder="e.g. UPI ref 4432, balance on checkout" maxlength="160">
+          <div class="statuswarn" id="statusWarn"></div></div>
       </div>
     </div>
 
@@ -775,8 +801,10 @@ body.dark .toast.err{color:#ffb4ad}
       <button class="btn wa act" onclick="sendWhatsApp()">WhatsApp</button>
       <button class="btn" id="editInvBtn" onclick="enableInvoiceEdit()" style="display:none">✏ Edit</button>
       <button class="btn" id="statusInvBtn" onclick="openStatusModal()" style="display:none">✓ Status</button>
-      <button class="btn danger-btn" id="voidBtn" onclick="voidCurrentInvoice()" style="display:none">🚫 Void</button>
+      <button class="btn" id="dupInvBtn" onclick="duplicateInvoice()" style="display:none">⧉ Duplicate</button>
+      <button class="btn danger-btn" id="voidBtn" onclick="askVoid('invoice')" style="display:none">🚫 Void</button>
     </div>
+    <div class="lockednote" id="invLockNote" style="display:none"></div>
 
     <div id="invoice" class="doc">
       <div class="watermark"><span id="ivWatermark">INVOICE</span></div>
@@ -858,7 +886,7 @@ body.dark .toast.err{color:#ffb4ad}
             <table>
               <tr><td>Grand Total</td><td class="r" id="ivPayTotal">₹0.00</td></tr>
               <tr><td>Amount Received</td><td class="r" id="ivAdv">₹0.00</td></tr>
-              <tr><td class="bal">Balance Due</td><td class="r bal" id="ivBal">₹0.00</td></tr>
+              <tr><td class="bal" id="ivBalLbl">Balance Due</td><td class="r bal" id="ivBal">₹0.00</td></tr>
               <tr><td style="color:var(--muted)">Mode</td><td class="r" id="ivMode">—</td></tr>
             </table>
             <div class="rmk" id="ivPayRemark" style="display:none"></div>
@@ -948,8 +976,9 @@ body.dark .toast.err{color:#ffb4ad}
       <button class="btn vact" onclick="doJPGV()">⬇ JPG</button>
       <button class="btn wa vact" onclick="sendWhatsAppV()">WhatsApp</button>
       <button class="btn" id="editVouBtn" onclick="enableVoucherEdit()" style="display:none">✏ Edit</button>
-      <button class="btn danger-btn" id="voidVouBtn" onclick="voidCurrentVoucher()" style="display:none">🚫 Void</button>
+      <button class="btn danger-btn" id="voidVouBtn" onclick="askVoid('voucher')" style="display:none">🚫 Void</button>
     </div>
+    <div class="lockednote" id="vouLockNote" style="display:none"></div>
 
     <div id="voucher" class="doc">
       <div class="watermark"><span>ADVANCE</span></div>
@@ -1049,7 +1078,10 @@ body.dark .toast.err{color:#ffb4ad}
   <div class="wrap">
     <div class="pagehead">
       <div><h2>Past Invoices</h2><div class="ph-sub">Tap a bill to open it. Use Status to mark it paid.</div></div>
-      <button class="btn gold sm" onclick="newInvoice()">＋ New Invoice</button>
+      <div class="headbtns">
+        <button class="btn sm" onclick="exportInvoicesCSV()">⬇ CSV</button>
+        <button class="btn gold sm" onclick="newInvoice()">＋ New Invoice</button>
+      </div>
     </div>
     <div class="searchbar">
       <input id="pastSearch" placeholder="Search guest, phone or invoice no…" oninput="debouncedPastInv()">
@@ -1071,7 +1103,10 @@ body.dark .toast.err{color:#ffb4ad}
   <div class="wrap">
     <div class="pagehead">
       <div><h2>Past Advance Vouchers</h2><div class="ph-sub">Tap a voucher to open, reprint or edit it.</div></div>
-      <button class="btn gold sm" onclick="newVoucher()">＋ New Voucher</button>
+      <div class="headbtns">
+        <button class="btn sm" onclick="exportVouchersCSV()">⬇ CSV</button>
+        <button class="btn gold sm" onclick="newVoucher()">＋ New Voucher</button>
+      </div>
     </div>
     <div class="searchbar">
       <input id="vouSearch" placeholder="Search name, phone or voucher no…" oninput="debouncedPastVou()">
@@ -1087,6 +1122,7 @@ body.dark .toast.err{color:#ffb4ad}
   <div class="wrap">
     <div class="pagehead">
       <div><h2>Staff Advances</h2><div class="ph-sub">Money given to staff, what came back, and what's still outstanding.</div></div>
+      <div class="headbtns"><button class="btn sm" onclick="exportStaffCSV()">⬇ CSV</button></div>
     </div>
 
     <div class="stats">
@@ -1278,6 +1314,19 @@ body.dark .toast.err{color:#ffb4ad}
     <div class="close">
       <button class="x" onclick="hide('statusOverlay')">Cancel</button>
       <button class="btn gold" onclick="applyStatus()">Save Status</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="voidOverlay">
+  <div class="modal">
+    <h2 id="voidTitle">Cancel this document?</h2>
+    <p id="voidSub">The record is kept but stamped CANCELLED. You can undo this later.</p>
+    <div class="fld" id="voidReasonWrap"><label>Reason <span class="hint">(optional)</span></label>
+      <input id="voidReason" maxlength="160" placeholder="e.g. guest cancelled the booking"></div>
+    <div class="close">
+      <button class="x" onclick="hide('voidOverlay')">Keep it</button>
+      <button class="btn danger-btn" id="voidGo" onclick="confirmVoid()">Yes, cancel it</button>
     </div>
   </div>
 </div>
@@ -1698,8 +1747,17 @@ function render(){
   const adv=+$('advance').value||0;
   const bal=g.final-adv;$('balance').value=Math.round(bal);
 
-  if(!statusTouched) $('payStatus').value = deriveStatus(g.final, adv);
+  const autoSt = deriveStatus(g.final, adv);
+  if(!statusTouched) $('payStatus').value = autoSt;
   const st=$('payStatus').value;
+  const sw=$('statusWarn');
+  if(sw){
+    if(st!==autoSt && !LOADED_VOIDED){
+      sw.innerHTML='⚠ Status is set to <b>'+STATUS_LABEL[st]+'</b>, but '+rupee(adv)+' of '+rupee(g.final)+
+        ' is received — that reads as <b>'+STATUS_LABEL[autoSt]+'</b>. <span class="fix" onclick="syncStatusToAmounts()">Use '+STATUS_LABEL[autoSt]+'</span>';
+      sw.classList.add('show');
+    } else sw.classList.remove('show');
+  }
 
   const enteredTotal=Math.round(+$('grandTotal').value||0);
   const mm=$('totalMismatch');
@@ -1773,7 +1831,8 @@ function render(){
 
   $('ivPayTotal').textContent=rupee(g.final);
   $('ivAdv').textContent=rupee(adv);
-  $('ivBal').textContent=rupee(Math.max(0,bal));
+  $('ivBalLbl').textContent = bal<0 ? 'Excess / Refundable' : 'Balance Due';
+  $('ivBal').textContent=rupee(Math.abs(bal));
   $('ivMode').textContent=$('payMode').value;
   const pr=($('payRemark').value||'').trim();
   if(pr){ $('ivPayRemark').textContent='Remark: '+pr; $('ivPayRemark').style.display=''; }
@@ -1881,10 +1940,16 @@ function updateActionButtons(){
   const ok = invoiceSaved && canGenerate();
   document.querySelectorAll('#v-invoice .toolbar .act').forEach(btn=>{ btn.disabled=!ok; btn.style.opacity=ok?'':'.45'; btn.style.pointerEvents=ok?'':'none'; });
   const hint=$('saveHint'); if(hint) hint.style.display=invoiceSaved&&!INV_EDITING?'none':'';
-  const saved = !!LOADED_INVOICE_ID;
-  $('editInvBtn').style.display   = (saved && canEdit() && !INV_EDITING) ? '' : 'none';
-  $('statusInvBtn').style.display = (saved && canEdit() && !LOADED_VOIDED) ? '' : 'none';
-  $('voidBtn').style.display      = (saved && canEdit()) ? '' : 'none';
+  const saved = !!LOADED_INVOICE_ID, editable = canEdit();
+  $('editInvBtn').style.display   = (saved && editable && !INV_EDITING) ? '' : 'none';
+  $('statusInvBtn').style.display = (saved && editable && !LOADED_VOIDED) ? '' : 'none';
+  $('dupInvBtn').style.display    = (saved && !INV_EDITING) ? '' : 'none';
+  $('voidBtn').style.display      = (saved && editable) ? '' : 'none';
+  const ln=$('invLockNote');
+  if(ln){
+    if(saved && !editable){ ln.innerHTML='🔒 This invoice is saved and locked. <b>Editing is switched off for this hotel</b> — the super admin can turn it on from Home → Hotel Controls. You can still print, download and duplicate it.'; ln.style.display=''; }
+    else ln.style.display='none';
+  }
   $('voidBtn').textContent        = LOADED_VOIDED ? '↩ Un-void' : '🚫 Void';
   const stamp=$('ivVoidStamp'); if(stamp) stamp.style.display = LOADED_VOIDED ? '' : 'none';
   const sb=$('saveBtn'), mo=$('invMoSave');
@@ -1906,7 +1971,7 @@ function setFormLocked(locked){
 }
 function enableInvoiceEdit(){
   if(!canEdit()){ toast(niceErr('edit_not_allowed'),true); return; }
-  INV_EDITING=true; setFormLocked(false); updateActionButtons();
+  INV_EDITING=true; statusTouched=false; setFormLocked(false); updateActionButtons(); render();
   if(isMobile()) setMTab('details');
   toast("Editing — tap Update to save changes");
 }
@@ -1915,7 +1980,17 @@ function clearInvalid(){
   p.querySelectorAll('.invalid').forEach(e=>e.classList.remove('invalid'));
   const se=$('saveError'); if(se) se.classList.remove('show');
 }
-function onFieldEdit(){ clearInvalid(); if(!INV_EDITING) setSaved(false); render(); }
+function onFieldEdit(){ clearInvalid(); if(!INV_EDITING) setSaved(false); render(); saveDraft(); }
+function syncStatusToAmounts(){ statusTouched=false; render(); toast("Status matched to the amounts"); }
+function duplicateInvoice(){
+  LOADED_INVOICE_ID=null; LOADED_VOIDED=false; INV_EDITING=false; statusTouched=false;
+  $('advance').value=0; $('payRemark').value=''; $('payStatus').value='pending';
+  $('invDate').value=todayIST();
+  setFormLocked(false); clearInvalid(); setSaved(false);
+  refreshInvoiceNumber();
+  if(isMobile()) setMTab('details');
+  toast("Copied into a new invoice — check the dates before saving");
+}
 function resetTotalToComputed(){
   const c=compute(); $('grandTotal').value=c.computedGrand; lastComputedTotal=c.computedGrand;
   onFieldEdit(); toast("Total reset to line items");
@@ -2008,6 +2083,7 @@ async function saveInvoice(){
     else { SAVED_CTX='invoice'; $('savedTitle').textContent='Invoice saved ✓';
       $('savedMsg').innerHTML='Invoice <b>'+escapeHtml($('invNo').value)+'</b> saved. Print it, save a copy, or start the next one.';
       show('savedOverlay'); }
+    clearDraftSilently();
     loadStats();
   }catch(e){ toast((INV_EDITING?"Update":"Save")+" failed: "+niceErr(e.message),true); }
 }
@@ -2035,6 +2111,7 @@ function newInvoice(){
   setFormLocked(false); clearInvalid(); setSaved(false);
   go('invoice'); setMTab('details');
   refreshInvoiceNumber();
+  checkDraft();
 }
 
 /* ---------- guest autofill ---------- */
@@ -2054,9 +2131,102 @@ function debouncedGuest(q, box, onPick){
   },300);
 }
 
+/* ---------- unsaved-draft autosave (mobile safety net) ---------- */
+let draftTimer;
+const DRAFT_FIELDS=['invDate','gName','gPhone','cin','cout','people','mealType','mealCharge','exPersons','exRate',
+  'discVal','discType','grandTotal','advance','payMode','payStatus','payRemark','agentName','agentPhone'];
+function draftKey(){
+  const hid = (SESSION.role==='super_admin') ? activeHotelId : ((SESSION.hotel&&SESSION.hotel.id)||'');
+  return 'vp_draft_'+(hid||'x');
+}
+function saveDraft(){
+  if(invoiceSaved || INV_EDITING || LOADED_INVOICE_ID) return;
+  clearTimeout(draftTimer);
+  draftTimer=setTimeout(()=>{
+    const f={}; DRAFT_FIELDS.forEach(id=>f[id]=$(id).value);
+    f._meal=$('mealOpt').checked; f._gst=$('gstAdd').checked; f._agent=$('agentOpt').checked;
+    const rooms=getRooms(), extras=getExtras();
+    const worth = f.gName.trim() || rooms.some(r=>r.tariff>0) || extras.some(e=>e.desc.trim());
+    if(!worth){ lsDel(draftKey()); return; }
+    lsSet(draftKey(), JSON.stringify({t:Date.now(), f, rooms, extras}));
+  },900);
+}
+function checkDraft(){
+  const bar=$('draftBar'); if(!bar) return;
+  const raw=lsGet(draftKey(),'');
+  if(!raw){ bar.style.display='none'; return; }
+  try{
+    const d=JSON.parse(raw);
+    $('draftWhen').textContent=new Date(d.t).toLocaleString('en-IN',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'});
+    bar.style.display='';
+  }catch(e){ lsDel(draftKey()); bar.style.display='none'; }
+}
+function restoreDraft(){
+  let d=null; try{ d=JSON.parse(lsGet(draftKey(),'')); }catch(e){}
+  if(!d){ discardDraft(); return; }
+  $('roomRows').innerHTML='';
+  (d.rooms&&d.rooms.length?d.rooms:[{}]).forEach(r=>addRoomRow(r.type,r.count,r.tariff));
+  updateRoomDelete();
+  $('extraRows').innerHTML='';
+  (d.extras||[]).forEach(e=>addExtraRow(e.desc,e.qty,e.rate));
+  updateExtraChrome();
+  DRAFT_FIELDS.forEach(id=>{ if(d.f && d.f[id]!==undefined) $(id).value=d.f[id]; });
+  $('mealOpt').checked=!!d.f._meal; $('gstAdd').checked=!!d.f._gst; $('agentOpt').checked=!!d.f._agent;
+  $('mealTypeWrap').style.display=d.f._meal?'':'none';
+  $('mealChargeWrap').style.display=d.f._meal?'':'none';
+  $('agentFields').style.display=d.f._agent?'':'none';
+  lastComputedTotal=-1; statusTouched=true;
+  $('draftBar').style.display='none';
+  render(); toast("Draft restored");
+}
+function discardDraft(){ lsDel(draftKey()); const b=$('draftBar'); if(b) b.style.display='none'; toast("Draft discarded"); }
+function clearDraftSilently(){ lsDel(draftKey()); const b=$('draftBar'); if(b) b.style.display='none'; }
+
+/* ---------- CSV export ---------- */
+function downloadCSV(filename, headers, rows){
+  const esc=v=>{const t=String(v==null?'':v); return /[",\n]/.test(t) ? '"'+t.replace(/"/g,'""')+'"' : t;};
+  const csv=[headers.join(',')].concat(rows.map(r=>r.map(esc).join(','))).join('\n');
+  const blob=new Blob(['\ufeff'+csv],{type:'text/csv;charset=utf-8;'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a'); a.href=url; a.download=filename; a.click();
+  setTimeout(()=>URL.revokeObjectURL(url),3000);
+  toast("CSV downloaded ✓");
+}
+function exportInvoicesCSV(){
+  if(!PAST_INV_ARR.length){ toast("Nothing to export yet",true); return; }
+  downloadCSV('invoices-'+todayIST()+'.csv',
+    ['Invoice No','Date','Guest','Phone','Total','Received','Balance','Status','Mode','Remark'],
+    PAST_INV_ARR.map(i=>{
+      const paid=Number(i.amount_paid||i.advance_amount||0), tot=Number(i.total_amount||0);
+      return [i.invoice_number,String(i.invoice_date||'').slice(0,10),i.guest_name,i.guest_phone,tot,paid,
+        Math.max(0,tot-paid), i.voided?'cancelled':(i.payment_status||'pending'), i.payment_mode||'', i.payment_remark||''];
+    }));
+}
+function exportVouchersCSV(){
+  if(!VOU_ARR.length){ toast("Nothing to export yet",true); return; }
+  downloadCSV('advance-vouchers-'+todayIST()+'.csv',
+    ['Voucher No','Date','Received From','Phone','Amount','Mode','Reference','Remark','Purpose','Status'],
+    VOU_ARR.map(v=>[v.voucher_number,String(v.voucher_date||'').slice(0,10),v.received_from,v.phone,
+      Number(v.amount||0),v.payment_mode||'',v.reference||'',v.payment_remark||'',v.purpose||'',v.voided?'cancelled':'active']));
+}
+function exportStaffCSV(){
+  const rows=(STAFF_CACHE&&STAFF_CACHE.rows)||[];
+  if(!rows.length){ toast("Nothing to export yet",true); return; }
+  downloadCSV('staff-advances-'+todayIST()+'.csv',
+    ['Date','Staff Name','Type','Amount','Mode','Remark'],
+    rows.map(r=>[String(r.txn_date||'').slice(0,10),r.staff_name,
+      r.txn_type==='repaid'?'Returned by staff':'Given to staff',Number(r.amount||0),r.payment_mode||'',r.remark||'']));
+}
+
 /* ---------- past invoices ---------- */
-let PAST_INV={}, INV_FILTER='', pastTimer;
-function openPastInvoices(){ go('pastInv'); loadPastInvoices(); }
+let PAST_INV={}, PAST_INV_ARR=[], VOU_ARR=[], INV_FILTER='', pastTimer;
+function openPastInvoices(filter){
+  if(filter!==undefined){
+    INV_FILTER=filter||'';
+    document.querySelectorAll('#v-pastInv .fchip').forEach(b=>b.classList.toggle('on',(b.dataset.st||'')===INV_FILTER));
+  }
+  go('pastInv'); loadPastInvoices();
+}
 function debouncedPastInv(){ clearTimeout(pastTimer); pastTimer=setTimeout(loadPastInvoices,320); }
 function setInvFilter(btn,st){
   INV_FILTER=st;
@@ -2071,6 +2241,7 @@ async function loadPastInvoices(){
     const d=await api('listInvoices',{query:$('pastSearch').value||"",limit:60, ...hotelParam()});
     let arr=d.invoices||[];
     if(INV_FILTER) arr=arr.filter(i=>(i.payment_status||'pending')===INV_FILTER);
+    PAST_INV_ARR=arr;
     if(!arr.length){ list.innerHTML='<div class="empty"><span class="big">📄</span>No invoices found.</div>'; return; }
     PAST_INV={};
     list.innerHTML=arr.map(i=>{
@@ -2124,25 +2295,44 @@ async function reloadInvoice(id){
     $('payStatus').value=i.payment_status||deriveStatus(Number(i.total_amount||0),Number(i.amount_paid||0));
     statusTouched=true;
     LOADED_INVOICE_ID=i.id; LOADED_VOIDED=!!i.voided; INV_EDITING=false;
+    const db=$('draftBar'); if(db) db.style.display='none';
     go('invoice'); render(); setSaved(true); setFormLocked(true);
     if(isMobile()) setMTab('invoice');
     toast("Loaded "+i.invoice_number+(i.voided?" (VOIDED)":""));
   }catch(e){ toast("Could not load: "+niceErr(e.message),true); }
 }
-async function voidCurrentInvoice(){
+let VOID_CTX='invoice', VOID_UNDO=false;
+function askVoid(ctx){
+  VOID_CTX=ctx;
+  const voided = (ctx==='voucher') ? VOU_VOIDED : LOADED_VOIDED;
+  const no = (ctx==='voucher') ? $('vNo').value : $('invNo').value;
+  const word = (ctx==='voucher') ? 'voucher' : 'invoice';
+  if(ctx==='voucher' ? !LOADED_VOUCHER_ID : !LOADED_INVOICE_ID){ toast("Open a saved "+word+" first",true); return; }
+  VOID_UNDO=voided;
+  $('voidTitle').textContent = voided ? ('Restore '+(no||'this '+word)+'?') : ('Cancel '+(no||'this '+word)+'?');
+  $('voidSub').textContent = voided
+    ? 'It becomes active again and the CANCELLED stamp is removed.'
+    : 'The record is kept for your books but stamped CANCELLED. You can undo this later.';
+  $('voidReasonWrap').style.display = voided ? 'none' : '';
+  $('voidReason').value='';
+  $('voidGo').textContent = voided ? 'Yes, restore it' : 'Yes, cancel it';
+  show('voidOverlay');
+}
+function confirmVoid(){
+  const reason=$('voidReason').value.trim(), voiding=!VOID_UNDO;
+  hide('voidOverlay');
+  if(VOID_CTX==='voucher') voidCurrentVoucher(voiding,reason);
+  else voidCurrentInvoice(voiding,reason);
+}
+async function voidCurrentInvoice(voiding,reason){
   if(!LOADED_INVOICE_ID){ toast("Open a saved invoice first",true); return; }
-  const voiding=!LOADED_VOIDED;
-  let reason='';
-  if(voiding){
-    reason=prompt("Void invoice "+($('invNo').value||'')+" ?\nThe record is kept but marked CANCELLED.\n\nReason (optional):","");
-    if(reason===null) return;
-  } else if(!confirm("Un-void "+($('invNo').value||'')+" ? It becomes active again.")) return;
-  toast(voiding?"Voiding…":"Restoring…");
+  reason=reason||'';
+  toast(voiding?"Cancelling…":"Restoring…");
   try{
-    const d=await api('voidInvoice',{id:LOADED_INVOICE_ID, reason:reason||'', void:voiding, ...hotelParam()});
+    const d=await api('voidInvoice',{id:LOADED_INVOICE_ID, reason:reason, void:voiding, ...hotelParam()});
     LOADED_VOIDED=(d&&d.invoice)?!!d.invoice.voided:voiding;
     render(); updateActionButtons(); loadStats();
-    toast(voiding?"Invoice voided ✓":"Invoice restored ✓");
+    toast(voiding?"Invoice cancelled ✓":"Invoice restored ✓");
   }catch(e){ toast("Failed: "+niceErr(e.message),true); }
 }
 
@@ -2245,6 +2435,11 @@ function updateVoucherButtons(){
   $('editVouBtn').style.display = (saved && canEdit() && !VOU_EDITING) ? '' : 'none';
   $('voidVouBtn').style.display = (saved && canEdit()) ? '' : 'none';
   $('voidVouBtn').textContent   = VOU_VOIDED ? '↩ Un-void' : '🚫 Void';
+  const ln=$('vouLockNote');
+  if(ln){
+    if(saved && !canEdit()){ ln.innerHTML='🔒 This voucher is saved and locked. <b>Editing is switched off for this hotel</b> — the super admin can turn it on from Home → Hotel Controls.'; ln.style.display=''; }
+    else ln.style.display='none';
+  }
   const b=$('vSaveBtn'); if(b) b.textContent = VOU_EDITING ? '💾 Update Voucher' : '💾 Save Voucher';
   const h=$('vSaveHint'); if(h) h.style.display = (voucherSaved && !VOU_EDITING) ? 'none' : '';
 }
@@ -2335,7 +2530,7 @@ async function loadPastVouchers(){
   list.innerHTML='<div class="empty">Loading…</div>';
   const d=await apiSoft('listVouchers',{query:$('vouSearch').value||"",limit:60, ...hotelParam()});
   if(!d){ list.innerHTML='<div class="empty"><span class="big">🛠</span>Vouchers need the backend update first.</div>'; return; }
-  const arr=d.vouchers||[];
+  const arr=d.vouchers||[]; VOU_ARR=arr;
   if(!arr.length){ list.innerHTML='<div class="empty"><span class="big">🧾</span>No vouchers yet.</div>'; return; }
   list.innerHTML=arr.map(v=>`<div class="row-card">
     <div class="rc-main" onclick="reloadVoucher('${escapeHtml(v.id)}')">
@@ -2357,17 +2552,15 @@ async function reloadVoucher(id){
   if(isMobile()) setMTab('invoice');
   toast("Loaded "+(v.voucher_number||'')+(v.voided?" (VOIDED)":""));
 }
-async function voidCurrentVoucher(){
+async function voidCurrentVoucher(voiding,reason){
   if(!LOADED_VOUCHER_ID) return;
-  const voiding=!VOU_VOIDED;
-  let reason='';
-  if(voiding){ reason=prompt("Void voucher "+($('vNo').value||'')+" ?\n\nReason (optional):",""); if(reason===null) return; }
-  else if(!confirm("Un-void "+($('vNo').value||'')+" ?")) return;
+  reason=reason||'';
+  toast(voiding?"Cancelling…":"Restoring…");
   try{
-    const d=await api('voidVoucher',{id:LOADED_VOUCHER_ID, reason:reason||'', void:voiding, ...hotelParam()});
+    const d=await api('voidVoucher',{id:LOADED_VOUCHER_ID, reason:reason, void:voiding, ...hotelParam()});
     VOU_VOIDED=(d&&d.voucher)?!!d.voucher.voided:voiding;
     renderVoucher(); updateVoucherButtons(); loadStats();
-    toast(voiding?"Voucher voided ✓":"Voucher restored ✓");
+    toast(voiding?"Voucher cancelled ✓":"Voucher restored ✓");
   }catch(e){ toast("Failed: "+niceErr(e.message),true); }
 }
 
@@ -2403,6 +2596,7 @@ function renderStaff(d){
       <div class="avatar">${escapeHtml((s.name||'?').trim().charAt(0).toUpperCase())}</div>
       <div class="sn"><b>${escapeHtml(s.name)}</b><small>Given ${rupee0(s.given)} · Back ${rupee0(s.repaid)} · ${s.txns||0} entries</small></div>
       <div class="so"><b style="color:${out>0?'var(--bad)':'var(--ok)'}">${rupee0(out)}</b><small>Outstanding</small></div>
+      ${out>0?`<button class="settle" onclick="event.stopPropagation();settleStaff(${idx})">Settle</button>`:''}
     </div>`;
   }).join('') : '<div class="empty" style="padding:22px"><span class="big">👤</span>No staff entries yet.</div>';
 
@@ -2466,6 +2660,16 @@ function deriveModes(rows){
 }
 function filterStaff(name){ STAFF_FILTER = (STAFF_FILTER===name) ? '' : name; loadStaff(); }
 function filterStaffIdx(i){ const s=STAFF_LIST[i]; if(s) filterStaff(s.name); }
+function settleStaff(i){
+  const s=STAFF_LIST[i]; if(!s) return;
+  $('saName').value=s.name; $('saType').value='repaid';
+  $('saAmount').value=Math.round(Number(s.outstanding||0));
+  $('saRemark').value='Settlement of outstanding advance';
+  $('saDate').value=todayIST();
+  $('saError').classList.remove('show');
+  try{ $('saName').scrollIntoView({behavior:'smooth',block:'center'}); }catch(e){}
+  toast("Settle-up filled in — check it, then Add Entry");
+}
 async function saveStaffTxn(){
   if(!canGenerate()){ toast("Locked for this hotel right now.",true); return; }
   const miss=[];
